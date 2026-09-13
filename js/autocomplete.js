@@ -1,5 +1,5 @@
 // [[wikilink]] autocomplete for a textarea: typing "[[" opens a dropdown of note titles.
-import { h, keepFocus } from './dom.js';
+import { h, insertText, keepFocus } from './dom.js';
 
 const MAX = 8;
 
@@ -69,14 +69,7 @@ export function attachWikilinkAutocomplete(ta, getTitles) {
     const title = items[i];
     const pos = ta.selectionStart;
     const closed = ta.value.slice(pos).startsWith(']]');
-    const insert = closed ? title : `${title}]]`;
-    ta.focus();
-    ta.setSelectionRange(start, pos);
-    // execCommand keeps the native undo stack; fall back when unsupported.
-    if (!document.execCommand('insertText', false, insert)) {
-      ta.setRangeText(insert, start, pos, 'end');
-      ta.dispatchEvent(new Event('input', { bubbles: true }));
-    }
+    insertText(ta, start, pos, closed ? title : `${title}]]`);
     if (closed) ta.setSelectionRange(start + title.length + 2, start + title.length + 2);
     close();
   }
@@ -101,6 +94,10 @@ export function attachWikilinkAutocomplete(ta, getTitles) {
     }
   }
 
+  const onScroll = () => {
+    if (!menu.hidden) position();
+  };
+
   const onKeyup = (e) => {
     if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) update();
   };
@@ -110,17 +107,18 @@ export function attachWikilinkAutocomplete(ta, getTitles) {
   ta.addEventListener('input', update);
   ta.addEventListener('click', update);
   ta.addEventListener('blur', close);
-  ta.addEventListener('scroll', close);
+  ta.addEventListener('scroll', onScroll);
 
-  return () => {
+  const destroy = () => {
     ta.removeEventListener('keydown', onKeydown);
     ta.removeEventListener('keyup', onKeyup);
     ta.removeEventListener('input', update);
     ta.removeEventListener('click', update);
     ta.removeEventListener('blur', close);
-    ta.removeEventListener('scroll', close);
+    ta.removeEventListener('scroll', onScroll);
     menu.remove();
   };
+  return { update, close, destroy, isOpen: () => !menu.hidden };
 }
 
 const MIRROR_PROPS = [
@@ -131,7 +129,7 @@ const MIRROR_PROPS = [
 ];
 
 /** Viewport coordinates of the caret, via an off-screen mirror of the textarea. */
-function caretRect(ta, pos) {
+export function caretRect(ta, pos) {
   const cs = getComputedStyle(ta);
   const mirror = document.createElement('div');
   for (const p of MIRROR_PROPS) mirror.style[p] = cs[p];

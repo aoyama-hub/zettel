@@ -124,9 +124,22 @@ export function timestampName(d = new Date()) {
 
 export const basename = (path) => path.split('/').pop().replace(/\.md$/i, '');
 
+/** One line of markdown reduced to readable plain text (for list previews). */
+export function plainText(line) {
+  return line
+    .replace(/^(\s*(#{1,6}|[-*+]|>|\d+[.)])\s+)+/, '')
+    .replace(/^\[[ xX]\]\s+/, '')
+    .replace(/!?\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2')
+    .replace(/!?\[\[([^\]]+)\]\]/g, '$1')
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/(\*\*|__|~~|==|`)/g, '')
+    .replace(/(^|[\s(])[*_](\S[^*_]*\S|\S)[*_](?=[\s.,;:!?)]|$)/g, '$1$2')
+    .trim();
+}
+
 function firstLine(body) {
-  const line = body.split('\n').map((l) => l.trim()).find(Boolean) || '';
-  return line.replace(/^(#+|[-*+]|>|\d+\.)\s+/, '').slice(0, 140);
+  const line = body.split('\n').map((l) => l.trim()).find((l) => l && !/^(```|~~~|---+$)/.test(l)) || '';
+  return plainText(line).slice(0, 140);
 }
 
 /** Build the in-memory note record from a file. */

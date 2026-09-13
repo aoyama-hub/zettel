@@ -39,13 +39,16 @@ Body in markdown with [[Alpha]] style links.
 ## Behaviour notes
 
 - **Capture**: tapping *New* saves the text to a local outbox right away, clears the box, and commits in the background. If a commit fails (offline, bad token), the note stays in the outbox. The app retries on the next capture, when the network comes back, or when the app becomes visible again. Tap the status text to retry now. The source field is cleared after each note, so the next note doesn't silently become a literature note.
-- **Editor**: autosaves 1.5 s after you stop typing, and also when the page is hidden. Cmd/Ctrl+S saves immediately. If the file was changed on another device, the status shows *Changed on another device. Tap to overwrite.*
+- **Reading**: existing notes open rendered, with headings, lists, tasks, quotes, code, tables, and links. `[[Links]]` are tappable, and links to notes that don't exist yet are dotted and create the note. Task checkboxes can be ticked while reading.
+- **Editing**: tap anywhere in a note to edit it; the cursor lands where you tapped. Tap the title to edit the title. **Done** (or Esc) goes back to reading. On phones a toolbar above the keyboard inserts `[[ ]]`, headings, lists, and tasks. Enter continues a list, and Enter on an empty item ends it. On desktop, `e` starts editing and Cmd/Ctrl+S saves.
+- **Saving**: autosaves after 4 s of idle time, and right away on Done, on leaving the note, or when the page is hidden. Unsaved edits are also kept on the device and restored if the tab is killed before a commit lands. If the file was changed on another device, the status shows *Changed on another device. Tap to overwrite.*
 - **Export** copies markdown to the clipboard with no network calls. Neighbours are counted in both directions: notes this one links to, plus notes that link to it.
-- **Index**: the app lists the repo tree once, then fetches each note's content and caches it in IndexedDB by blob sha. The first load of a large vault uses one API request per note (the limit is 5,000 requests per hour). Later loads only fetch notes that changed.
+- **Index**: the app lists the repo tree, then loads note contents in batches of 100 through the GraphQL API (falling back to one REST call per note), and caches them in IndexedDB by blob sha. A 2,000-note vault takes about 20 requests on first load. Later loads only fetch notes that changed.
+- **Offline**: a service worker keeps the app's own files. The app opens without a connection, and captures wait in the outbox. It always revalidates, so a new deploy is picked up on the next load.
 
 ## Security
 
-The token sits in `localStorage`, so anyone who can run JavaScript on this origin can read it. To keep that surface small, the app has no third-party scripts (plain `fetch`, no Octokit or CDN). A Content-Security-Policy limits scripts to this origin and network calls to `api.github.com`, and note content is only ever inserted as text. Scope the token to the notes repo only.
+The token sits in `localStorage`, so anyone who can run JavaScript on this origin can read it. To keep that surface small, the app has no third-party scripts (plain `fetch`, no Octokit or CDN). A Content-Security-Policy limits scripts to this origin and network calls to `api.github.com`. Rendered markdown is built as DOM nodes, never HTML strings, and only `http(s)`/`mailto` links are clickable. Images from `https:` URLs are shown in grayscale. Scope the token to the notes repo only.
 
 ## Not built
 

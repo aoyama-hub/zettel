@@ -90,7 +90,14 @@ export function listView(root) {
   );
 
   render();
-  const unsubscribe = store.subscribe(render);
+  let frame = 0;
+  const unsubscribe = store.subscribe(() => {
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(render);
+  });
   store.refresh();
-  return unsubscribe;
+  return () => {
+    cancelAnimationFrame(frame);
+    unsubscribe();
+  };
 }

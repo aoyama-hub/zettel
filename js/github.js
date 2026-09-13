@@ -91,6 +91,26 @@ export async function listTree() {
 
 export const getBlob = (sha) => request('GET', `${repoPath()}/git/blobs/${sha}`, { raw: true });
 
+/**
+ * Fetch many blobs in one GraphQL request (aliases cost 1 point per query instead of 1 REST call per note).
+ * Resolves to Map(sha -> text); binary, truncated, or missing blobs are left out for the caller to fetch via REST.
+ */
+export async function getBlobsBatch(shas) {
+  const cfg = getConfig();
+  const fields = shas.map((sha, i) => `b${i}: object(oid: "${sha}") { ... on Blob { text isBinary isTruncated } }`).join('\n');
+  const res = await request('POST', '/graphql', {
+    body: { query: `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { ${fields} } }`, variables: { owner: cfg.owner, name: cfg.repo } },
+  });
+  const repo = res?.data?.repository;
+  if (!repo) throw new GitHubError(res?.errors?.[0]?.message || 'GraphQL request failed.');
+  const out = new Map();
+  shas.forEach((sha, i) => {
+    const b = repo[`b${i}`];
+    if (b && typeof b.text === 'string' && !b.isBinary && !b.isTruncated) out.set(sha, b.text);
+  });
+  return out;
+}
+
 export async function getFile(path) {
   const cfg = getConfig();
   const f = await request('GET', `${repoPath(cfg)}/contents/${encPath(path)}?ref=${encodeURIComponent(cfg.branch)}`);

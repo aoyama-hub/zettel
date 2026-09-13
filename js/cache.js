@@ -30,3 +30,21 @@ export async function cacheSet(sha, text) {
     d.transaction('blobs', 'readwrite').objectStore('blobs').put(text, sha);
   } catch {}
 }
+
+/** Look up many shas in one transaction. Resolves to Map(sha -> text) of the hits. */
+export async function cacheGetMany(shas) {
+  const found = new Map();
+  try {
+    const d = await db();
+    await new Promise((resolve) => {
+      const tx = d.transaction('blobs');
+      const store = tx.objectStore('blobs');
+      for (const sha of shas) {
+        const req = store.get(sha);
+        req.onsuccess = () => req.result != null && found.set(sha, req.result);
+      }
+      tx.oncomplete = tx.onerror = tx.onabort = () => resolve();
+    });
+  } catch {}
+  return found;
+}

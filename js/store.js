@@ -1,6 +1,6 @@
 // In-memory note index (built from the repo tree + cached blobs) and the capture outbox.
 import * as gh from './github.js';
-import { cacheGet, cacheSet } from './cache.js';
+import { cacheGetMany, cacheSet } from './cache.js';
 import { getConfig } from './config.js';
 import { extractLinks, serializeNote, timestampName, toNote } from './note.js';
 
@@ -34,33 +34,15 @@ const treeKey = () => {
 async function build(entries, fetchMissing) {
   const notes = new Map();
   const missing = [];
+  const unknown = entries.filter((e) => state.notes.get(e.path)?.sha !== e.sha);
+  const cached = await cacheGetMany(unknown.map((e) => e.sha));
   for (const e of entries) {
     const prev = state.notes.get(e.path);
-    if (prev && prev.sha === e.sha) {
-      notes.set(e.path, prev);
-      continue;
-    }
-    const text = await cacheGet(e.sha);
-    if (text != null) notes.set(e.path, toNote(e.path, e.sha, text));
+    if (prev && prev.sha === e.sha) notes.set(e.path, prev);
+    else if (cached.has(e.sha)) notes.set(e.path, toNote(e.path, e.sha, cached.get(e.sha)));
     else missing.push(e);
   }
-  if (fetchMissing && missing.length) {
-    let next = 0;
-    let done = 0;
-    const worker = async () => {
-      while (next < missing.length) {
-        const e = missing[next++];
-        const text = await gh.getBlob(e.sha);
-        cacheSet(e.sha, text);
-        notes.set(e.path, toNote(e.path, e.sha, text));
-        if (++done % 10 === 0) {
-          state.progress = `Loading notes ${done}/${missing.length}`;
-          emit();
-        }
-      }
-    };
-    await Promise.all(Array.from({ length: Math.min(8, missing.length) }, worker));
-  }
+  if (fetchMissing && missing.length) await fetchBlobs(missing, notes);
   const now = Date.now();
   for (const [path, r] of recent) {
     if (now - r.t > RECENT_MS) recent.delete(path);
@@ -69,6 +51,55 @@ async function build(entries, fetchMissing) {
   }
   state.notes = notes;
   state.ready = true;
+}
+
+const BATCH = 100;
+
+async function fetchBlobs(missing, notes) {
+  let done = 0;
+  const add = (e, text) => {
+    cacheSet(e.sha, text);
+    notes.set(e.path, toNote(e.path, e.sha, text));
+  };
+  const progress = () => {
+    state.progress = `Loading notes ${done}/${missing.length}`;
+    emit();
+  };
+  // Batched GraphQL first; anything it can't return (or if GraphQL is unavailable) falls back to REST per blob.
+  const rest = [];
+  let graphqlOk = true;
+  for (let i = 0; i < missing.length; i += BATCH) {
+    const chunk = missing.slice(i, i + BATCH);
+    if (!graphqlOk) {
+      rest.push(...chunk);
+      continue;
+    }
+    try {
+      const texts = await gh.getBlobsBatch(chunk.map((e) => e.sha));
+      for (const e of chunk) {
+        if (texts.has(e.sha)) {
+          add(e, texts.get(e.sha));
+          done++;
+        } else {
+          rest.push(e);
+        }
+      }
+      progress();
+    } catch (err) {
+      if (err.status === 401 || err.status === 429 || /rate limit/i.test(err.message)) throw err;
+      graphqlOk = false;
+      rest.push(...chunk);
+    }
+  }
+  let next = 0;
+  const worker = async () => {
+    while (next < rest.length) {
+      const e = rest[next++];
+      add(e, await gh.getBlob(e.sha));
+      if (++done % 10 === 0) progress();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(6, rest.length) }, worker));
 }
 
 /** Instant index from the last known tree + blob cache, before the network answers. */

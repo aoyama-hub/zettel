@@ -441,24 +441,296 @@ button.armed {
 
 .ed-title {
   width: 100%;
-  padding: 8px 20px;
+  padding: 12px 20px 4px;
   border: 0;
   background: transparent;
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
 }
 
 .ed-body {
   flex: 1;
   min-height: 0;
   width: 100%;
-  padding: 8px 20px 20px;
+  padding: 8px 20px 24px;
   border: 0;
   resize: none;
   background: transparent;
-  font-size: 17px;
-  line-height: 1.6;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+button.done-btn {
+  min-height: 34px;
+  padding: 4px 16px;
+  margin-left: 4px;
+  border-color: var(--fg);
+  font-weight: 600;
+}
+
+/* Modes: reading shows the rendered note; editing shows title + textarea. */
+.editor.reading .ed-title,
+.editor.reading .ed-body,
+.editor.reading .toolbar,
+.editor.reading .done-btn,
+.editor.editing .reader,
+.editor.editing .read-actions {
+  display: none;
+}
+
+.read-actions {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar {
+  display: none;
+  gap: 6px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--line);
+  overflow-x: auto;
+}
+
+.toolbar .tool {
+  min-height: 36px;
+  min-width: 48px;
+  padding: 4px 14px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+/* On touch devices, formatting keys sit above the keyboard while writing; the linked strip steps aside. */
+@media (pointer: coarse) {
+  .editor.editing.typing-body .toolbar {
+    display: flex;
+  }
+
+  .editor.editing.typing .linked {
+    display: none;
+  }
+}
+
+/* ---- reading ---- */
+
+.reader {
+  padding: 12px 20px 64px;
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.read-title {
+  margin: 0 0 16px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.read-title.placeholder,
+.empty-note {
+  color: var(--faint);
+}
+
+.prose {
+  max-width: 38em;
+  font-size: 18px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.prose > :first-child {
+  margin-top: 0;
+}
+
+.prose p,
+.prose ul,
+.prose ol,
+.prose blockquote,
+.prose pre,
+.prose .table-wrap {
+  margin: 0 0 1em;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6 {
+  margin: 1.6em 0 0.5em;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+.prose h1 { font-size: 1.45em; }
+.prose h2 { font-size: 1.25em; }
+.prose h3 { font-size: 1.1em; }
+.prose h4,
+.prose h5,
+.prose h6 {
+  font-size: 1em;
+  color: var(--muted);
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.4em;
+}
+
+.prose li {
+  margin: 0.2em 0;
+}
+
+.prose li > ul,
+.prose li > ol {
+  margin: 0.2em 0 0;
+}
+
+.prose li::marker {
+  color: var(--faint);
+}
+
+.prose li.task {
+  list-style: none;
+  margin-left: -1.4em;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.5em;
+}
+
+.prose li.task > input {
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0;
+  flex: none;
+  transform: translateY(0.12em);
+  cursor: pointer;
+}
+
+.prose li.task > ul,
+.prose li.task > ol {
+  flex-basis: 100%;
+  padding-left: 1.55em;
+}
+
+.prose li.task.checked > span {
+  color: var(--faint);
+  text-decoration: line-through;
+  text-decoration-color: var(--faint);
+}
+
+.prose blockquote {
+  padding: 0 0 0 1em;
+  border-left: 2px solid var(--line);
+  color: var(--muted);
+}
+
+.prose blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+.prose hr {
+  margin: 2em 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.prose code {
+  font: 0.85em/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--press);
+}
+
+.prose pre {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--press);
+  overflow-x: auto;
+  cursor: text;
+}
+
+.prose pre code {
+  padding: 0;
+  background: none;
+  font-size: 14px;
+  white-space: pre;
+}
+
+.prose mark {
+  color: inherit;
+  background: var(--select);
+  padding: 0 0.1em;
+  border-radius: 2px;
+}
+
+.prose del {
+  color: var(--muted);
+}
+
+.prose img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.5em 0;
+  border-radius: 6px;
+  filter: grayscale(1);
+}
+
+.prose .table-wrap {
+  overflow-x: auto;
+}
+
+.prose table {
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.prose th,
+.prose td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.prose th {
+  font-weight: 600;
+  border-bottom-color: var(--faint);
+}
+
+.prose a {
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--faint);
+  text-underline-offset: 4px;
+}
+
+.prose a:hover,
+.prose a:active {
+  text-decoration-color: var(--fg);
+}
+
+.prose a.wikilink {
+  font-weight: 600;
+}
+
+.prose a.wikilink.unresolved {
+  font-weight: 400;
+  color: var(--muted);
+  text-decoration-style: dotted;
+}
+
+.prose a.external::after {
+  content: "\2197";
+  margin-left: 0.1em;
+  font-size: 0.75em;
+  color: var(--faint);
 }
 
 .from {

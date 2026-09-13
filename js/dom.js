@@ -2,11 +2,11 @@
 export function h(tag, props, ...children) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(props || {})) {
-    if (v == null || v === false) continue;
+    if (v == null) continue;
     if (k === 'class') el.className = v;
     else if (k.startsWith('on')) el.addEventListener(k.slice(2).toLowerCase(), v);
-    else if (k in el && !k.includes('-')) el[k] = v;
-    else el.setAttribute(k, v === true ? '' : v);
+    else if (k in el && !k.includes('-')) el[k] = v; // properties take false too (spellcheck: false)
+    else if (v !== false) el.setAttribute(k, v === true ? '' : v);
   }
   append(el, children);
   return el;
@@ -16,6 +16,16 @@ function append(el, children) {
   for (const c of children.flat(Infinity)) {
     if (c == null || c === false) continue;
     el.append(c instanceof Node ? c : String(c));
+  }
+}
+
+/** Replace [start, end) of a textarea, keeping the native undo stack where supported. Fires input. */
+export function insertText(ta, start, end, text) {
+  ta.focus();
+  ta.setSelectionRange(start, end);
+  if (!document.execCommand('insertText', false, text)) {
+    ta.setRangeText(text, start, end, 'end');
+    ta.dispatchEvent(new Event('input', { bubbles: true }));
   }
 }
 

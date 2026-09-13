@@ -44,11 +44,20 @@ fitViewport();
 
 window.addEventListener('hashchange', route);
 window.addEventListener('online', () => store.flushOutbox());
+// Coming back to the app (e.g. after writing on another device): commit pending captures, pick up remote changes.
+let lastRefresh = Date.now();
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') store.flushOutbox();
+  if (document.visibilityState !== 'visible' || !getConfig()) return;
+  store.flushOutbox();
+  if (Date.now() - lastRefresh > 60_000) {
+    lastRefresh = Date.now();
+    store.refresh();
+  }
 });
 
 route();
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 if (getConfig()) {
   store.flushOutbox();
