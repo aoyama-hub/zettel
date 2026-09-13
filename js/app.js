@@ -1,0 +1,57 @@
+import { getConfig } from './config.js';
+import * as store from './store.js';
+import { captureView } from './views/capture.js';
+import { configView } from './views/config.js';
+import { editorView } from './views/editor.js';
+import { listView } from './views/list.js';
+
+const root = document.getElementById('app');
+let teardown = null;
+
+function route() {
+  const [path, query = ''] = (location.hash.slice(1) || '/').split('?');
+  const params = new URLSearchParams(query);
+
+  if (!getConfig() && path !== '/config') {
+    location.replace('#/config');
+    return;
+  }
+
+  teardown?.();
+  teardown = null;
+
+  if (path === '/config') teardown = configView(root);
+  else if (path === '/notes') teardown = listView(root);
+  else if (path.startsWith('/note/')) {
+    const notePath = path.slice('/note/'.length).split('/').map(decodeURIComponent).join('/');
+    teardown = editorView(root, { path: notePath, from: params.get('from') });
+  } else if (path === '/new') {
+    teardown = editorView(root, { title: params.get('title'), from: params.get('from') });
+  } else teardown = captureView(root);
+}
+
+// Size the app to the visual viewport so bottom bars sit above the on-screen keyboard.
+function fitViewport() {
+  const vv = window.visualViewport;
+  const style = document.documentElement.style;
+  style.setProperty('--app-h', `${vv ? vv.height : window.innerHeight}px`);
+  style.setProperty('--app-top', `${vv ? vv.offsetTop : 0}px`);
+}
+window.visualViewport?.addEventListener('resize', fitViewport);
+window.visualViewport?.addEventListener('scroll', fitViewport);
+window.addEventListener('resize', fitViewport);
+fitViewport();
+
+window.addEventListener('hashchange', route);
+window.addEventListener('online', () => store.flushOutbox());
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') store.flushOutbox();
+});
+
+route();
+
+if (getConfig()) {
+  store.flushOutbox();
+  // Warm the index in the background so autocomplete and the list are ready.
+  store.loadCached().then(() => store.refresh());
+}
