@@ -25,7 +25,7 @@ python3 -m http.server 8000
 title: Notes compound over time     # permanent notes only
 type: permanent                     # fleeting | literature | permanent
 source: Thinking, Fast and Slow     # literature notes only
-references: [Thinking, Fast and Slow] # permanent (and fleeting) notes: connected references
+references: ["Thinking, Fast and Slow"] # permanent (and fleeting) notes: connected references
 created_at: 2026-09-13T14:17:10.346Z
 links: [Alpha, Beta]
 ---
