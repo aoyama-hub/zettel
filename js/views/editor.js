@@ -660,21 +660,35 @@ export function editorView(root, { path, title: initialTitle, from }) {
   }
 
   const noteLink = (n) => h('li', {}, h('a', { href: `#/note/${gh.encPath(n.path)}` }, n.title));
-  const group = (label, items) =>
-    h('div', { class: 'linked-group' }, h('h3', {}, label), items.length ? h('ul', {}, items) : h('p', { class: 'muted' }, 'None'));
+  const group = (label, items) => items.length > 0 && h('div', { class: 'linked-group' }, h('h3', {}, label), h('ul', {}, items));
 
   function renderLinked() {
     const title = titleEl.value.trim();
     const outgoing = extractLinks(bodyEl.value).map((t) => ({ t, note: store.findByTitle(t) }));
     const incoming = store.backlinks(title, doc.path);
-    const count = new Set([...outgoing.map((o) => o.note?.path || `?${o.t.toLowerCase()}`), ...incoming.map((n) => n.path)]).size;
+    const sharing = store.sharingReferences(refs, doc.path);
+    const notes = new Set([
+      ...outgoing.map((o) => o.note?.path || `?${o.t.toLowerCase()}`),
+      ...incoming.map((n) => n.path),
+      ...sharing.map((n) => n.path),
+    ]);
+    const count = refs.length + notes.size;
     linkedToggle.textContent = `Linked notes · ${count}`;
     linkedToggle.setAttribute('aria-expanded', String(!linkedBody.hidden));
     if (linkedBody.hidden) return;
-    linkedBody.replaceChildren(
+    const refKeys = (n) => new Set(n.references.map(store.sourceKey));
+    const groups = [
+      group('References', refs.map((r) => h('li', {}, h('a', { href: refHref(r) }, r)))),
+      group('Shares a reference', sharing.map((n) => {
+        const shared = refs.filter((r) => refKeys(n).has(store.sourceKey(r)));
+        return h('li', {}, h('a', { href: `#/note/${gh.encPath(n.path)}` }, n.title), h('span', { class: 'via' }, shared.join(', ')));
+      })),
       group('Links to', outgoing.map(({ t, note }) =>
         note ? noteLink(note) : h('li', {}, h('a', { class: 'unresolved', href: `#/new?title=${encodeURIComponent(t)}` }, t)))),
       group('Linked from', incoming.map(noteLink)),
+    ].filter(Boolean);
+    linkedBody.replaceChildren(
+      ...(groups.length ? groups : [h('p', { class: 'muted' }, 'Nothing yet. Add a reference, or type [[ to link a note.')]),
     );
   }
 

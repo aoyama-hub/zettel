@@ -8,17 +8,34 @@ export const isoDay = (value) => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
 
-// Read by an LLM before the notes: what they are, how the plain format works, and how to use them.
-function preamble(count) {
-  return [
-    `These are ${count} permanent notes from my Zettelkasten, exported ${isoDay(Date.now())} for you to use as context. Each note is one idea I distilled and wrote in my own words, so treat them as my own thinking, not as quotes or verified facts.`,
-    'Format: each note follows a line containing only ---. Its first line is the title. Its second line is the date I created it, then after · the sources it came from (books, articles, interviews, posts), if any. The rest is the note. [[Title]] links to another note in this file by title, meaning the ideas are related.',
-    'Refer to notes by title. Use them to understand what I know, believe, and am working through, and to find connections, gaps, and tensions between ideas. If I haven\'t asked a question yet, briefly confirm you\'ve read them and wait for it.',
-  ].join('\n');
-}
+// Read by an LLM before the notes. The author's prompt, verbatim.
+const PROMPT = `You are helping me find emergent connections across my personal Zettelkasten — atomic permanent notes, each one idea in my own words. Below this prompt is my full export: title, date, sources (if any), body text, and [[wikilinks]] I've already drawn between them.
+
+Work in two passes.
+
+PASS 1 — Analysis (show this before your final answer)
+Go through the notes and, for each pair or cluster that shares an underlying mechanism, briefly note what the shared structure actually is. Focus specifically on pairs with NO existing [[link]] between them. Also flag any pair where following one note's logic complicates or pushes against another. Base every observation on specific note content — quote or paraphrase the exact line that supports it.
+
+PASS 2 — Candidate notes, in two tiers
+
+Tier 1 — Solid: connections you'd stand behind, where the shared mechanism is concrete and traceable to specific lines in the notes.
+
+Tier 2 — Stretch: connections that are genuinely plausible but you're less sure of — a structural echo you noticed but can't fully justify, an analogy that might be reaching, a link that only works if you squint. Include these. Label them clearly as Tier 2 and briefly say what makes you uncertain about each one. This tier is where the actually novel combinations tend to live — don't self-censor here, just don't disguise a stretch as a solid finding.
+
+For both tiers, write each as a new candidate permanent note, matching the exact style of my existing notes:
+
+Example of the target format:
+---
+Title in my voice, same tone as my existing titles
+One or two sentences, first person or declarative, no hedging, no "this suggests" academic framing.
+---
+
+Aim for 3-5 in Tier 1 and however many genuine Tier 2 candidates you find — don't pad Tier 1 to hit a number, and don't suppress Tier 2 to look more certain than you are.
+
+[notes follow below]`;
 
 /**
- * Minimal formatting to keep token counts low, after a short preamble:
+ * Minimal formatting to keep token counts low, after the prompt:
  *   ---
  *   Title
  *   2026-08-25 · Reference; Other reference
@@ -33,7 +50,7 @@ export function permanentNotesText(notes) {
       .replace(/^[ \t]*-{3,}[ \t]*$/gm, '***'); // a markdown divider must not look like the note separator
     return [n.title, meta, body].filter(Boolean).join('\n');
   });
-  return `${[preamble(notes.length), ...blocks].join('\n---\n')}\n`;
+  return `${[PROMPT, ...blocks].join('\n---\n')}\n`;
 }
 
 /** Save text as a .txt file: a normal download on desktop, the share sheet (Save to Files) on iPhone/iPad. */

@@ -2,7 +2,7 @@
 import * as gh from './github.js';
 import { cacheGetMany, cacheSet } from './cache.js';
 import { getConfig } from './config.js';
-import { extractLinks, serializeNote, timestampName, toNote } from './note.js';
+import { SOURCE_LINE, extractLinks, serializeNote, timestampName, toNote, uniqueReferences } from './note.js';
 
 const NOTE_RE = /^(fleeting|literature|permanent)\/.+\.md$/;
 
@@ -208,6 +208,41 @@ export async function deleteFleeting(n, message) {
   if (!isFleeting(n)) throw new Error('Only fleeting notes can be deleted this way.');
   await gh.deleteFleetingFile(n.path, n.sha, message);
   removeLocal(n.path);
+}
+
+/**
+ * Connect a permanent note to a reference, or disconnect it, by rewriting its `references` list.
+ * Disconnecting also drops a legacy "Source: …" body line naming that reference.
+ */
+export async function setConnected(note, reference, connected) {
+  const n = state.notes.get(note.path) || note;
+  if (n.type !== 'permanent') throw new Error('Only permanent notes can be connected to a reference.');
+  const key = sourceKey(reference);
+  const refs = connected
+    ? uniqueReferences([...n.references, reference])
+    : n.references.filter((r) => sourceKey(r) !== key);
+  const body = connected
+    ? n.body
+    : n.body
+      .split('\n')
+      .filter((l) => sourceKey(l.match(SOURCE_LINE)?.[1]) !== key)
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/\s*$/, '\n');
+  const fm = { ...n.fm, references: refs.length ? refs : undefined, updated_at: new Date().toISOString() };
+  const content = serializeNote({ fm, extra: n.extra, body });
+  const name = n.path.split('/').pop();
+  const sha = await gh.putFile(n.path, content, n.sha, `${connected ? 'Connect' : 'Disconnect'} ${name} ${connected ? 'to' : 'from'} ${reference}`);
+  return upsertLocal(n.path, sha, content);
+}
+
+/** Other permanent notes that share at least one reference with these references. */
+export function sharingReferences(refs, excludePath) {
+  const keys = new Set(refs.map(sourceKey));
+  if (!keys.size) return [];
+  return permanentNotes()
+    .filter((n) => n.path !== excludePath && n.references.some((r) => keys.has(sourceKey(r))))
+    .sort((a, b) => a.title.localeCompare(b.title));
 }
 
 /**

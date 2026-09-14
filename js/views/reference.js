@@ -1,7 +1,7 @@
 // One reference (a book, article, interview, post, URL…): its literature notes in the same day-grouped
 // listing as the Fleeting tab, the permanent notes connected to it, and a box to add notes.
 import { encPath } from '../github.js';
-import { confirmButton, h, toast, wrappingField } from '../dom.js';
+import { confirmButton, h, keepFocus, toast, wrappingField } from '../dom.js';
 import { renderMarkdown } from '../markdown.js';
 import * as store from '../store.js';
 import { dayGroups, preview, referenceCounts, shortRow } from './rows.js';
@@ -9,6 +9,8 @@ import { dayGroups, preview, referenceCounts, shortRow } from './rows.js';
 export function referenceView(root, { name = '' }) {
   let current = name.trim();
   const open = new Set(); // paths of expanded notes
+  let connecting = false; // the "connect a permanent note" search is showing
+  const busy = new Set(); // paths being connected/disconnected
 
   const nameInput = wrappingField({
     class: 'ed-title',
@@ -89,6 +91,116 @@ export function referenceView(root, { name = '' }) {
     }
   }
 
+  // ---- connecting permanent notes ----
+
+  const connectInput = h('input', {
+    type: 'search',
+    class: 'search connect-search',
+    placeholder: 'Search permanent notes',
+    autocapitalize: 'off',
+    spellcheck: false,
+    enterKeyHint: 'done',
+    'aria-label': 'Search permanent notes to connect',
+    onInput: () => renderPicker(),
+    onKeydown: (e) => {
+      if (e.isComposing || e.keyCode === 229) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closePicker();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const first = candidates()[0];
+        if (first) connect(first);
+      }
+    },
+  });
+  const pickerList = h('ul', { class: 'notes picker' });
+
+  const connectedKey = () => store.sourceKey(current);
+  const candidates = () => {
+    const k = connectInput.value.trim().toLowerCase();
+    return store
+      .permanentNotes()
+      .filter((n) => !n.references.some((r) => store.sourceKey(r) === connectedKey()))
+      .filter((n) => !k || `${n.title}\n${n.body}`.toLowerCase().includes(k))
+      .sort((a, b) => a.title.localeCompare(b.title))
+      .slice(0, 8);
+  };
+
+  function renderPicker() {
+    const list = candidates();
+    pickerList.replaceChildren(
+      ...list.map((n) =>
+        h('li', {}, h('button', {
+          type: 'button',
+          class: 'pick',
+          disabled: busy.has(n.path),
+          onPointerdown: keepFocus,
+          onMousedown: keepFocus,
+          onClick: () => connect(n),
+        }, h('span', { class: 't' }, n.title), n.firstLine && h('span', { class: 'l' }, n.firstLine)))),
+      !list.length && h('li', { class: 'empty' }, store.permanentNotes().length ? 'No other notes match.' : 'No permanent notes yet.'),
+    );
+  }
+
+  function openPicker() {
+    connecting = true;
+    connectInput.value = '';
+    render();
+    connectInput.focus();
+  }
+
+  function closePicker() {
+    connecting = false;
+    render();
+  }
+
+  async function setConnected(n, connected) {
+    busy.add(n.path);
+    render();
+    try {
+      await store.setConnected(n, displayName(), connected);
+      toast(connected ? `Connected “${n.title}”` : `Disconnected “${n.title}”`);
+    } catch (e) {
+      status.textContent = e.message;
+    } finally {
+      busy.delete(n.path);
+      render();
+    }
+  }
+
+  const connect = (n) => {
+    connectInput.value = '';
+    return setConnected(n, true);
+  };
+
+  const displayName = () => store.references().find((g) => g.key === connectedKey())?.name || current;
+
+  function permanentSection(permanent) {
+    return h('section', { class: 'ref-permanent' },
+      h('div', { class: 'section-head' },
+        h('h2', { class: 'section-label' }, 'Permanent notes'),
+        h('button', { type: 'button', class: 'quiet', onClick: connecting ? closePicker : openPicker }, connecting ? 'Done' : '+ Connect'),
+      ),
+      connecting && h('div', { class: 'picker-wrap' }, connectInput, pickerList),
+      permanent.length
+        ? h('ul', { class: 'notes connected' },
+          permanent.map((n) => h('li', {},
+            h('a', { href: `#/note/${encPath(n.path)}` },
+              h('span', { class: 't' }, n.title),
+              n.firstLine && h('span', { class: 'l' }, n.firstLine)),
+            h('button', {
+              type: 'button',
+              class: 'quiet disconnect',
+              disabled: busy.has(n.path),
+              title: 'Disconnect',
+              'aria-label': `Disconnect ${n.title}`,
+              onClick: () => setConnected(n, false),
+            }, '×'))))
+        : !connecting && h('p', { class: 'empty' }, 'No permanent notes connected yet.'),
+    );
+  }
+
   function toggle(path) {
     if (open.has(path)) open.delete(path);
     else open.add(path);
@@ -135,16 +247,13 @@ export function referenceView(root, { name = '' }) {
     ]);
     const permanent = group?.permanent || [];
 
+    const typing = document.activeElement === connectInput;
     body.replaceChildren(
       rows.length ? h('ul', { class: 'notes short' }, rows) : h('p', { class: 'empty' }, 'No notes yet.'),
-      permanent.length > 0 && h('section', { class: 'ref-permanent' },
-        h('h2', { class: 'section-label' }, 'Permanent notes'),
-        h('ul', { class: 'notes' },
-          permanent.map((n) => h('li', {}, h('a', { href: `#/note/${encPath(n.path)}` },
-            h('span', { class: 't' }, n.title),
-            n.firstLine && h('span', { class: 'l' }, n.firstLine))))),
-      ),
+      permanentSection(permanent),
     );
+    if (connecting) renderPicker();
+    if (typing && connecting) connectInput.focus({ preventScroll: true }); // re-rendering detached it
   }
 
   root.replaceChildren(

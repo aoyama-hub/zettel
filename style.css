@@ -955,8 +955,15 @@ button.done-btn {
   padding: 3px 0;
 }
 
-.linked-group p {
-  margin: 2px 0;
+.linked-group p,
+.linked-body > p {
+  margin: 8px 0 2px;
+}
+
+.linked-group .via {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--faint);
 }
 
 a.unresolved {
@@ -1075,6 +1082,72 @@ a.unresolved {
 .ref-permanent {
   border-top: 1px solid var(--line);
   margin-top: 8px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 8px;
+}
+
+.section-head .section-label {
+  margin-bottom: 0;
+}
+
+.section-head button {
+  margin-top: 14px;
+  min-height: 32px;
+  font-size: 13px;
+}
+
+.picker-wrap {
+  padding: 4px 0 8px;
+}
+
+.picker-wrap .search {
+  width: calc(100% - 40px);
+  margin: 0 20px 4px;
+}
+
+.notes.picker {
+  border-bottom: 1px solid var(--line);
+}
+
+.notes.picker button.pick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  min-height: 0;
+  padding: 8px 20px;
+  border: 0;
+  border-radius: 0;
+  text-align: left;
+  white-space: normal;
+}
+
+.notes.picker .l,
+.notes.connected .l {
+  max-width: 100%;
+}
+
+.notes.connected li {
+  display: flex;
+  align-items: center;
+}
+
+.notes.connected li > a {
+  flex: 1;
+  min-width: 0;
+}
+
+.notes.connected button.disconnect {
+  flex: none;
+  min-height: 36px;
+  margin-right: 8px;
+  padding: 4px 12px;
+  font-size: 18px;
 }
 
 /* ---- editor: references ---- */
