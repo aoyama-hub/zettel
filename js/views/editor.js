@@ -2,7 +2,7 @@ import * as gh from '../github.js';
 import { attachWikilinkAutocomplete, caretRect } from '../autocomplete.js';
 import { confirmButton, formatDate, h, insertText, keepFocus, toast } from '../dom.js';
 import { renderMarkdown } from '../markdown.js';
-import { basename, extractLinks, serializeNote, slugify, timestampName, toNote } from '../note.js';
+import { SOURCE_LINE, basename, extractLinks, noteReferences, serializeNote, slugify, timestampName, toNote, uniqueReferences } from '../note.js';
 import * as store from '../store.js';
 
 // Autosave after this much idle time; leaving, Done, and hiding the page save immediately.
@@ -24,6 +24,7 @@ export function editorView(root, { path, title: initialTitle, from }) {
   let savedTimer = null;
   let chain = Promise.resolve();
   let renderedTitles = '';
+  let refs = []; // references this note is connected to (frontmatter `references`)
 
   // ---- elements ----
 
@@ -52,7 +53,8 @@ export function editorView(root, { path, title: initialTitle, from }) {
 
   const readTitle = h('h1', { class: 'read-title' });
   const prose = h('div', { class: 'prose' });
-  const reader = h('article', { class: 'reader scroll', onClick: onReaderClick }, readTitle, prose);
+  const readRefs = h('p', { class: 'note-refs', hidden: true });
+  const reader = h('article', { class: 'reader scroll', onClick: onReaderClick }, readTitle, readRefs, prose);
 
   const tool = (label, name, fn) =>
     h('button', { type: 'button', class: 'tool', title: name, 'aria-label': name, onPointerdown: keepFocus, onMousedown: keepFocus, onClick: fn }, label);
@@ -73,6 +75,7 @@ export function editorView(root, { path, title: initialTitle, from }) {
     titleEl.value = t;
     originalTitle = t;
     bodyEl.value = body.replace(/\n$/, '');
+    refs = noteReferences(fm, body);
     lastSaved = build();
     loaded = true;
     refresh();
@@ -115,8 +118,14 @@ export function editorView(root, { path, title: initialTitle, from }) {
     source = src;
     renderSource();
     // Prefill a fresh note with the source text to distil, unless the user already typed.
+    // Its references come along as structured data, so rewriting the text can't lose them.
     if (!doc.path && build() === lastSaved) {
-      bodyEl.value = src.body.trim() + (src.fm.source ? `\n\nSource: ${src.fm.source}` : '');
+      bodyEl.value = src.body
+        .split('\n')
+        .filter((l) => !SOURCE_LINE.test(l))
+        .join('\n')
+        .trim();
+      refs = uniqueReferences([...(src.type === 'literature' ? [src.fm.source] : []), ...src.references]);
       lastSaved = build();
       refresh();
     }
@@ -220,6 +229,7 @@ export function editorView(root, { path, title: initialTitle, from }) {
     readTitle.textContent = title || 'Untitled';
     readTitle.classList.toggle('placeholder', !title);
     renderedTitles = titlesKey();
+    renderReadRefs();
     const body = bodyEl.value;
     prose.replaceChildren(
       body.trim()
@@ -240,6 +250,7 @@ export function editorView(root, { path, title: initialTitle, from }) {
 
   function refresh() {
     if (mode === 'read') renderRead();
+    renderRefsEdit();
     renderLinked();
   }
 
@@ -305,7 +316,13 @@ export function editorView(root, { path, title: initialTitle, from }) {
   function build() {
     const title = titleEl.value.trim();
     const body = bodyEl.value;
-    const fm = { ...doc.fm, title: title || undefined, type: 'permanent', links: extractLinks(body) };
+    const fm = {
+      ...doc.fm,
+      title: title || undefined,
+      type: 'permanent',
+      references: refs.length ? refs : undefined,
+      links: extractLinks(body),
+    };
     return serializeNote({ fm, extra: doc.extra, body: body && !body.endsWith('\n') ? `${body}\n` : body });
   }
 
@@ -412,7 +429,7 @@ export function editorView(root, { path, title: initialTitle, from }) {
   function writeDraft() {
     if (!doc.path) return;
     try {
-      localStorage.setItem(DRAFT_PREFIX + doc.path, JSON.stringify({ title: titleEl.value, body: bodyEl.value, base: doc.sha }));
+      localStorage.setItem(DRAFT_PREFIX + doc.path, JSON.stringify({ title: titleEl.value, body: bodyEl.value, refs, base: doc.sha }));
     } catch {}
   }
 
@@ -424,9 +441,11 @@ export function editorView(root, { path, title: initialTitle, from }) {
     let d = null;
     try { d = JSON.parse(localStorage.getItem(DRAFT_PREFIX + doc.path)); } catch {}
     if (!d) return;
-    if (d.title === titleEl.value && d.body === bodyEl.value) return clearDraft();
+    const sameRefs = !d.refs || d.refs.join('\n') === refs.join('\n');
+    if (d.title === titleEl.value && d.body === bodyEl.value && sameRefs) return clearDraft();
     titleEl.value = d.title;
     bodyEl.value = d.body;
+    if (d.refs) refs = d.refs;
     refresh();
     if (d.base && d.base !== doc.sha) {
       conflict = true;
@@ -526,6 +545,101 @@ export function editorView(root, { path, title: initialTitle, from }) {
     }
   }
 
+  // ---- references (sources) this note is connected to ----
+
+  const refHref = (name) => `#/ref/${encodeURIComponent(name)}`;
+
+  function renderReadRefs() {
+    readRefs.hidden = !refs.length;
+    readRefs.replaceChildren(
+      ...refs.flatMap((r, i) => [i ? ' · ' : '', h('a', { href: refHref(r) }, r)]),
+    );
+  }
+
+  const refInput = h('input', {
+    class: 'ref-input',
+    placeholder: 'Add a reference',
+    spellcheck: false,
+    autocapitalize: 'off',
+    enterKeyHint: 'done',
+    'aria-label': 'Add a reference',
+    hidden: true,
+    onInput: () => renderRefSuggestions(),
+    onBlur: () => setTimeout(() => {
+      if (document.activeElement === refInput) return;
+      addRef(refInput.value);
+      refInput.hidden = true;
+      refSuggest.hidden = true;
+    }, 150),
+    onKeydown: (e) => {
+      if (e.isComposing || e.keyCode === 229) return;
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addRef(refInput.value);
+        refInput.focus();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        refInput.value = '';
+        refInput.blur();
+      }
+    },
+  });
+  const refSuggest = h('div', { class: 'source-suggest', hidden: true });
+  const refChips = h('div', { class: 'ref-chips' });
+  const refsEdit = h('div', { class: 'refs-edit' }, refChips, refInput, refSuggest);
+
+  function renderRefsEdit() {
+    refChips.replaceChildren(
+      ...refs.map((r) =>
+        h('span', { class: 'ref-chip' },
+          h('span', {}, r),
+          h('button', { type: 'button', class: 'quiet', 'aria-label': `Remove reference ${r}`, onPointerdown: keepFocus, onMousedown: keepFocus, onClick: () => removeRef(r) }, '×'))),
+      refInput.hidden && h('button', {
+        type: 'button',
+        class: 'quiet add-ref',
+        onClick: () => {
+          refInput.hidden = false;
+          refInput.focus();
+          renderRefsEdit();
+          renderRefSuggestions();
+        },
+      }, refs.length ? '+ Reference' : '+ Add reference'),
+    );
+  }
+
+  function renderRefSuggestions() {
+    const k = store.sourceKey(refInput.value);
+    const taken = new Set(refs.map(store.sourceKey));
+    const matches = store.references().filter((g) => !taken.has(g.key) && g.key.includes(k)).slice(0, 6);
+    refSuggest.hidden = refInput.hidden || !matches.length;
+    refSuggest.replaceChildren(
+      ...matches.map((g) =>
+        h('button', { type: 'button', class: 'quiet', onPointerdown: keepFocus, onMousedown: keepFocus, onClick: () => { addRef(g.name); refInput.focus(); } }, g.name)),
+    );
+  }
+
+  function addRef(name) {
+    const next = uniqueReferences([...refs, name]);
+    refInput.value = '';
+    if (next.length !== refs.length) {
+      refs = next;
+      edited();
+    }
+    renderRefsEdit();
+    renderRefSuggestions();
+  }
+
+  function removeRef(name) {
+    const key = store.sourceKey(name);
+    refs = refs.filter((r) => store.sourceKey(r) !== key);
+    // A legacy "Source: …" body line would bring it back on the next load; drop it too.
+    const lines = bodyEl.value.split('\n');
+    const kept = lines.filter((l) => store.sourceKey(l.match(SOURCE_LINE)?.[1]) !== key);
+    if (kept.length !== lines.length) bodyEl.value = kept.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd();
+    edited();
+    renderRefsEdit();
+  }
+
   // ---- linked notes strip ----
 
   const linkedToggle = h('button', { type: 'button', class: 'linked-toggle quiet', onClick: toggleLinked });
@@ -578,6 +692,7 @@ export function editorView(root, { path, title: initialTitle, from }) {
     fromRow,
     reader,
     titleEl,
+    refsEdit,
     bodyEl,
     toolbar,
     h('footer', { class: 'linked' }, linkedToggle, linkedBody),

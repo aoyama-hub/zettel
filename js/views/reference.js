@@ -1,11 +1,14 @@
-// One reference (a book, article, interview, post, URL…): its literature notes, read in order, plus a box to add more.
+// One reference (a book, article, interview, post, URL…): its literature notes in the same day-grouped
+// listing as the Fleeting tab, the permanent notes connected to it, and a box to add notes.
 import { encPath } from '../github.js';
-import { confirmButton, formatDate, h, toast } from '../dom.js';
+import { confirmButton, h, toast } from '../dom.js';
 import { renderMarkdown } from '../markdown.js';
 import * as store from '../store.js';
+import { dayGroups, preview, referenceCounts, shortRow } from './rows.js';
 
 export function referenceView(root, { name = '' }) {
   let current = name.trim();
+  const open = new Set(); // paths of expanded notes
 
   const nameInput = h('input', {
     class: 'ed-title',
@@ -22,13 +25,12 @@ export function referenceView(root, { name = '' }) {
   });
   const heading = h('h1', { class: 'read-title ref-title' });
   const meta = h('p', { class: 'ref-meta' });
-  const notesEl = h('div', { class: 'ref-notes' });
-  const citedEl = h('div', { class: 'ref-cited' });
+  const body = h('div', { class: 'ref-body' });
   const status = h('span', { class: 'status' });
 
   const text = h('textarea', {
     class: 'ref-add-text',
-    rows: 3,
+    rows: 1,
     placeholder: 'Add a note about this reference…',
     spellcheck: false,
     'aria-label': 'New note',
@@ -54,18 +56,18 @@ export function referenceView(root, { name = '' }) {
   };
 
   function add() {
-    const body = text.value.trim();
+    const note = text.value.trim();
     const source = (current || nameInput.value).trim();
     if (!source) {
       status.textContent = 'Name the reference first';
       nameInput.focus();
       return;
     }
-    if (!body) {
+    if (!note) {
       text.focus();
       return;
     }
-    store.capture({ text: body, source });
+    store.capture({ text: note, source });
     text.value = '';
     grow();
     status.textContent = '';
@@ -80,10 +82,32 @@ export function referenceView(root, { name = '' }) {
   async function removeNote(n) {
     try {
       await store.deleteLiteratureByUser(store.state.notes.get(n.path) || n);
+      open.delete(n.path);
       toast('Note deleted');
     } catch (e) {
       status.textContent = e.message;
     }
+  }
+
+  function toggle(path) {
+    if (open.has(path)) open.delete(path);
+    else open.add(path);
+    render();
+  }
+
+  function literatureRow(n) {
+    if (!open.has(n.path)) return shortRow({ text: preview(n.body), onClick: () => toggle(n.path) });
+    return h('li', { class: 'expanded' },
+      h('div', {
+        class: 'short-row',
+        role: 'button',
+        tabIndex: 0,
+        'aria-expanded': 'true',
+        onClick: (e) => { if (!e.target.closest('a') && window.getSelection()?.isCollapsed !== false) toggle(n.path); },
+        onKeydown: (e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); toggle(n.path); } },
+      }, h('div', { class: 'prose' }, renderMarkdown(n.body.trim(), { resolveWiki }))),
+      h('div', { class: 'row-actions' }, confirmButton('Delete', 'Confirm delete', () => removeNote(n), { class: 'quiet' })),
+    );
   }
 
   function render() {
@@ -99,35 +123,27 @@ export function referenceView(root, { name = '' }) {
         ? h('a', { class: 'external', href: displayName, target: '_blank', rel: 'noopener noreferrer' }, displayName)
         : displayName,
     );
+    meta.textContent = current ? referenceCounts({ notes: [...(group?.notes || []), ...pending], permanent: group?.permanent || [] }) : '';
+    if (!current) return body.replaceChildren();
 
-    const count = (group?.notes.length || 0) + pending.length;
-    meta.textContent = current ? `${count} note${count === 1 ? '' : 's'}` : '';
+    const rows = dayGroups([
+      ...(group?.notes || []).map((n) => ({ time: store.lastTouched(n), node: literatureRow(n) })),
+      ...pending.map((p) => ({
+        time: Date.parse(p.created_at),
+        node: h('li', { class: 'pending' }, h('span', { class: 'short-row' }, h('span', { class: 'clip' }, preview(p.text)))),
+      })),
+    ]);
+    const permanent = group?.permanent || [];
 
-    notesEl.replaceChildren(
-      ...(group?.notes || []).map((n) =>
-        h('article', { class: 'ref-note' },
-          h('div', { class: 'prose' }, renderMarkdown(n.body.trim(), { resolveWiki })),
-          h('div', { class: 'ref-note-meta' },
-            h('span', {}, formatDate(n.fm.created_at)),
-            confirmButton('Delete', 'Confirm delete', () => removeNote(n), { class: 'quiet' }),
-          ),
-        )),
-      ...pending.map((p) =>
-        h('article', { class: 'ref-note pending' },
-          h('div', { class: 'prose' }, renderMarkdown(p.text, { resolveWiki })),
-          h('div', { class: 'ref-note-meta' }, h('span', {}, store.state.outboxError ? `Not saved yet: ${store.state.outboxError}` : 'Saving…')),
-        )),
-    );
-    if (current && !count) notesEl.replaceChildren(h('p', { class: 'empty-note' }, 'No notes yet.'));
-
-    // Permanent notes distilled from this reference carry a "Source: …" line.
-    const cited = current
-      ? store.permanentNotes().filter((n) => n.body.split('\n').some((l) => /^source:/i.test(l.trim()) && store.sourceKey(l.trim().slice(7)) === key))
-      : [];
-    citedEl.hidden = !cited.length;
-    citedEl.replaceChildren(
-      h('h3', {}, 'Permanent notes'),
-      h('ul', {}, cited.map((n) => h('li', {}, h('a', { href: `#/note/${encPath(n.path)}` }, n.title)))),
+    body.replaceChildren(
+      rows.length ? h('ul', { class: 'notes short' }, rows) : h('p', { class: 'empty' }, 'No notes yet.'),
+      permanent.length > 0 && h('section', { class: 'ref-permanent' },
+        h('h2', { class: 'section-label' }, 'Permanent notes'),
+        h('ul', { class: 'notes' },
+          permanent.map((n) => h('li', {}, h('a', { href: `#/note/${encPath(n.path)}` },
+            h('span', { class: 't' }, n.title),
+            n.firstLine && h('span', { class: 'l' }, n.firstLine))))),
+      ),
     );
   }
 
@@ -137,12 +153,9 @@ export function referenceView(root, { name = '' }) {
         h('a', { class: 'btn quiet', href: '#/refs' }, 'References'),
         status,
       ),
-      h('div', { class: 'reader scroll' },
-        nameInput,
-        heading,
-        meta,
-        notesEl,
-        citedEl,
+      h('div', { class: 'scroll' },
+        h('div', { class: 'ref-head' }, nameInput, heading, meta),
+        body,
       ),
       h('div', { class: 'ref-add' },
         text,

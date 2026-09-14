@@ -15,10 +15,19 @@ export function permanentNotesText(notes) {
   const head = [
     'ZETTELKASTEN: PERMANENT NOTES',
     `${notes.length} note${notes.length === 1 ? '' : 's'}, exported ${today}`,
-    'Each note begins with a separator line, then its TITLE and CREATED date. [[Double brackets]] link to other notes by title.',
+    'Each note begins with a separator line, then its TITLE, CREATED date, and REFERENCES (sources) when it has any. [[Double brackets]] link to other notes by title.',
   ].join('\n');
   const blocks = notes.map((n, i) =>
-    [RULE, `NOTE ${i + 1} OF ${notes.length}`, `TITLE: ${n.title}`, `CREATED: ${isoDay(n.fm.created_at)}`, RULE, '', n.body.trim() || '(empty)'].join('\n'));
+    [
+      RULE,
+      `NOTE ${i + 1} OF ${notes.length}`,
+      `TITLE: ${n.title}`,
+      `CREATED: ${isoDay(n.fm.created_at)}`,
+      ...(n.references?.length ? [`REFERENCES: ${n.references.join('; ')}`] : []),
+      RULE,
+      '',
+      n.body.trim() || '(empty)',
+    ].join('\n'));
   return `${head}\n\n${blocks.join('\n\n')}\n`;
 }
 

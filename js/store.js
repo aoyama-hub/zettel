@@ -224,22 +224,33 @@ export async function deleteLiteratureByUser(n) {
 
 export const sourceKey = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
 
+const touchedIso = (n) => String(n.fm.updated_at || n.fm.created_at || '');
+
+/**
+ * References: literature notes grouped by their source, plus permanent notes connected to each reference.
+ * A reference exists as soon as either kind of note names it.
+ */
 export function references() {
   const groups = new Map();
-  for (const n of state.notes.values()) {
-    if (n.type !== 'literature') continue;
-    const name = String(n.fm.source || '').trim() || 'No source';
+  const groupFor = (rawName, stamp) => {
+    const name = String(rawName || '').trim().replace(/\s+/g, ' ') || 'No source';
     const key = sourceKey(name);
-    const group = groups.get(key) || { key, name, notes: [], latest: '' };
-    group.notes.push(n);
-    const t = String(n.fm.created_at || '');
-    if (t >= group.latest) {
-      group.latest = t;
-      group.name = name;
+    const g = groups.get(key) || { key, name, notes: [], permanent: [], latest: '' };
+    if (stamp >= g.latest) {
+      g.latest = stamp;
+      g.name = name;
     }
-    groups.set(key, group);
+    groups.set(key, g);
+    return g;
+  };
+  for (const n of state.notes.values()) {
+    if (n.type === 'literature') groupFor(n.fm.source, touchedIso(n)).notes.push(n);
+    else if (n.type === 'permanent') for (const r of n.references) groupFor(r, touchedIso(n)).permanent.push(n);
   }
-  for (const g of groups.values()) g.notes.sort((a, b) => -newestFirst(a, b));
+  for (const g of groups.values()) {
+    g.notes.sort((a, b) => -newestFirst(a, b));
+    g.permanent.sort((a, b) => a.title.localeCompare(b.title));
+  }
   return [...groups.values()].sort((a, b) => b.latest.localeCompare(a.latest));
 }
 

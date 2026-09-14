@@ -401,14 +401,14 @@ button.armed {
   padding: 0 0 8px;
 }
 
-.notes a {
+.notes > li > a {
   display: flex;
   flex-direction: column;
   padding: 10px 20px;
   text-decoration: none;
 }
 
-.notes a:active {
+.notes > li > a:active {
   background: var(--press);
 }
 
@@ -438,36 +438,92 @@ button.armed {
   padding-top: 8px;
 }
 
-.notes.fleeting a,
-.notes .pending .fleeting-item {
-  display: block;
+/* Short-note rows (Fleeting, Archive, reference pages): every row is exactly two lines tall. */
+.notes.short .short-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-height: 0;
   padding: 9px 20px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  white-space: normal;
+  color: inherit;
+  cursor: pointer;
+  user-select: auto;
+  -webkit-user-select: auto;
 }
 
-.fleeting-item {
+.notes.short .short-row:active {
+  background: var(--press);
+}
+
+.clip {
+  flex: 1;
+  min-width: 0;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
+  /* min/max rather than height: Chrome's line-clamp sizes the box to its content and ignores height */
+  min-height: calc(2 * 1.45em);
+  max-height: calc(2 * 1.45em);
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
 
-.notes.fleeting a.fleeting-item {
-  display: -webkit-box;
+.short-row .aside {
+  flex: none;
+  padding-top: 2px;
+  font-size: 12px;
+  color: var(--faint);
 }
 
 .notes .pending {
   color: var(--faint);
 }
 
-.countdown {
-  margin-left: 8px;
-  font-size: 12px;
-  color: var(--faint);
+.notes.short .pending .short-row {
+  cursor: default;
 }
 
-.notes a.create {
+.notes.short .expanded .short-row {
+  display: block;
+  cursor: pointer;
+}
+
+.notes.short .expanded .prose {
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.notes.short .expanded .prose > :first-child {
+  margin-top: 0;
+}
+
+.notes.short .expanded .prose > :last-child {
+  margin-bottom: 0;
+}
+
+.row-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 12px 6px;
+}
+
+.row-actions button {
+  min-height: 32px;
+  font-size: 13px;
+}
+
+.notes > li > a.create {
   color: var(--muted);
 }
 
@@ -560,6 +616,7 @@ button.done-btn {
 
 /* Modes: reading shows the rendered note; editing shows title + textarea. */
 .editor.reading .ed-title,
+.editor.reading .refs-edit,
 .editor.reading .ed-body,
 .editor.reading .toolbar,
 .editor.reading .done-btn,
@@ -984,76 +1041,105 @@ a.unresolved {
 
 /* ---- reference ---- */
 
+.ref-head {
+  padding: 12px 20px 4px;
+}
+
 .reference .ed-title {
   padding: 0 0 4px;
 }
 
 .ref-title {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .ref-meta {
-  margin: 0 0 20px;
+  margin: 0 0 4px;
   font-size: 13px;
   color: var(--faint);
 }
 
-.ref-note {
-  padding: 4px 0 16px;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--line);
-}
-
-.ref-note .prose > :last-child {
-  margin-bottom: 0;
-}
-
-.ref-note.pending {
-  opacity: 0.55;
-}
-
-.ref-note-meta {
-  display: flex;
-  gap: 14px;
-  margin-top: 8px;
-  font-size: 13px;
-  color: var(--faint);
-}
-
-.ref-note-meta button {
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  font-size: 13px;
-  color: var(--muted);
-  text-decoration: underline;
-  text-decoration-color: var(--faint);
-  text-underline-offset: 3px;
-}
-
-.ref-note-meta button.armed {
-  color: var(--fg);
-  text-decoration-color: var(--fg);
-}
-
-.ref-cited h3 {
-  margin: 8px 0 4px;
+.section-label {
+  margin: 20px 20px 2px;
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--faint);
 }
 
-.ref-cited ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.ref-permanent {
+  border-top: 1px solid var(--line);
+  margin-top: 8px;
 }
 
-.ref-cited li a {
-  display: inline-block;
-  padding: 3px 0;
+/* ---- editor: references ---- */
+
+.note-refs {
+  margin: -8px 0 18px;
+  font-size: 14px;
+  color: var(--faint);
+}
+
+.note-refs a {
+  color: var(--muted);
+  text-decoration-color: var(--faint);
+}
+
+.refs-edit {
+  padding: 0 20px 4px;
+}
+
+.ref-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+
+.ref-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 1px 2px 1px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.ref-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ref-chip button {
+  min-height: 26px;
+  padding: 0 8px;
+  font-size: 15px;
+}
+
+.refs-edit button.add-ref {
+  min-height: 28px;
+  padding: 2px 4px;
+  font-size: 13px;
+  color: var(--faint);
+}
+
+.ref-input {
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  font-size: 16px;
+}
+
+.refs-edit .source-suggest {
+  padding: 6px 0 0;
 }
 
 .ref-add {

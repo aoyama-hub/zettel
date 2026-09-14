@@ -2,7 +2,7 @@
 export const TYPES = ['fleeting', 'literature', 'permanent'];
 
 // Keys this app reads and rewrites, in output order. Any other frontmatter keys are preserved verbatim.
-const KNOWN = ['title', 'type', 'source', 'created_at', 'updated_at', 'links', 'archived', 'archived_at'];
+const KNOWN = ['title', 'type', 'source', 'references', 'created_at', 'updated_at', 'links', 'archived', 'archived_at'];
 
 export function parseNote(text) {
   const m = text.match(/^---\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(?:\r?\n|$)/);
@@ -72,7 +72,7 @@ function yamlStr(s, inFlow = false) {
     /^\s|\s$/.test(s) ||
     /^[-?:,\[\]{}#&*!|>'"%@`]/.test(s) ||
     /: |:$| #|[\n\\"]/.test(s) ||
-    (inFlow && /[,\[\]{}]/.test(s)) ||
+    (inFlow && /[,:\[\]{}]/.test(s)) ||
     /^(true|false|yes|no|on|off|null|~|[-+]?(\d[\d_]*)?\.?\d+([eE][-+]?\d+)?)$/i.test(s);
   return needsQuotes ? JSON.stringify(s) : s;
 }
@@ -157,5 +157,34 @@ export function toNote(path, sha, text) {
       links.push(l);
     }
   }
-  return { path, sha, type, title, fm, extra, body, links, firstLine: firstLine(body), archived: fm.archived === true };
+  return {
+    path, sha, type, title, fm, extra, body, links,
+    references: noteReferences(fm, body),
+    firstLine: firstLine(body),
+    archived: fm.archived === true,
+  };
+}
+
+// Legacy promotions wrote the reference as a "Source: …" line in the body.
+export const SOURCE_LINE = /^\s*source:\s*(.+?)\s*$/i;
+
+/** References a note is connected to: the `references` field plus any legacy "Source: …" body lines. */
+export function noteReferences(fm, body) {
+  const listed = Array.isArray(fm.references) ? fm.references : typeof fm.references === 'string' && fm.references ? [fm.references] : [];
+  const fromBody = body.split('\n').map((l) => l.match(SOURCE_LINE)?.[1]).filter(Boolean);
+  return uniqueReferences([...listed, ...fromBody]);
+}
+
+export function uniqueReferences(names) {
+  const out = [];
+  const seen = new Set();
+  for (const raw of names) {
+    const name = String(raw || '').trim().replace(/\s+/g, ' ');
+    const key = name.toLowerCase();
+    if (name && !seen.has(key)) {
+      seen.add(key);
+      out.push(name);
+    }
+  }
+  return out;
 }

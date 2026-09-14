@@ -1,8 +1,8 @@
 import { encPath } from '../github.js';
 import { h, toast } from '../dom.js';
 import { isoDay, permanentNotesText, saveTextFile } from '../download.js';
-import { plainText } from '../note.js';
 import * as store from '../store.js';
+import { dayGroups, preview, referenceCounts, shortRow } from './rows.js';
 
 const TABS = [
   ['fleeting', 'Fleeting'],
@@ -14,7 +14,6 @@ const SORT = 'zk.sort';
 
 const terms = (q) => q.toLowerCase().split(/\s+/).filter(Boolean);
 const matchesAll = (text, ts) => ts.every((t) => text.includes(t));
-const preview = (body) => body.split('\n').map(plainText).filter(Boolean).join(' ');
 const edited = (n) => Date.parse(n.fm.updated_at) || Date.parse(n.fm.created_at) || 0;
 
 function snippet(body, ts) {
@@ -24,35 +23,6 @@ function snippet(body, ts) {
   if (at == null) return null;
   const start = Math.max(0, at - 30);
   return `${start ? '…' : ''}${text.slice(start, at + 90).trim()}${at + 90 < text.length ? '…' : ''}`;
-}
-
-function dayLabel(ms) {
-  const d = new Date(ms);
-  const today = new Date();
-  const days = Math.round((new Date(today.toDateString()) - new Date(d.toDateString())) / store.DAY);
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  return d.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric',
-  });
-}
-
-/** Rows grouped under small day labels, newest day first. items: [{ time, node }] */
-function byDay(items) {
-  const out = [];
-  let last = '';
-  for (const { time, node } of items.sort((a, b) => b.time - a.time)) {
-    const key = time ? isoDay(time) : 'unknown';
-    if (key !== last) {
-      out.push(h('li', { class: 'day' }, time ? dayLabel(time) : 'Undated'));
-      last = key;
-    }
-    out.push(node);
-  }
-  return out;
 }
 
 export function listView(root, { tab }) {
@@ -108,18 +78,18 @@ export function listView(root, { tab }) {
   function renderFleeting(ts) {
     const notes = store.fleetingNotes().filter((n) => matchesAll(n.body.toLowerCase(), ts));
     const pending = ts.length ? [] : store.pendingCaptures().filter((p) => !p.source);
-    const rows = byDay([
+    const rows = dayGroups([
       ...pending.map((p) => ({
         time: Date.parse(p.created_at),
-        node: h('li', { class: 'pending' }, h('span', { class: 'fleeting-item' }, preview(p.text))),
+        node: h('li', { class: 'pending' }, h('span', { class: 'short-row' }, h('span', { class: 'clip' }, preview(p.text)))),
       })),
       ...notes.map((n) => ({
         time: store.lastTouched(n),
-        node: h('li', {}, h('a', { class: 'fleeting-item', href: `#/new?from=${encodeURIComponent(n.path)}` }, preview(n.body) || '(empty)')),
+        node: shortRow({ text: preview(n.body), href: `#/new?from=${encodeURIComponent(n.path)}` }),
       })),
     ]);
     if (store.state.ready && !rows.length) return [h('p', { class: 'empty' }, ts.length ? 'No matches.' : 'No fleeting notes.')];
-    return [h('ul', { class: 'notes fleeting' }, rows)];
+    return [h('ul', { class: 'notes short' }, rows)];
   }
 
   function renderPermanent(ts) {
@@ -151,7 +121,7 @@ export function listView(root, { tab }) {
   function renderRefs(ts, q) {
     const all = store.references();
     const refs = all
-      .filter((g) => matchesAll(`${g.name}\n${g.notes.map((n) => n.body).join('\n')}`.toLowerCase(), ts))
+      .filter((g) => matchesAll(`${g.name}\n${[...g.notes, ...g.permanent].map((n) => `${n.title}\n${n.body}`).join('\n')}`.toLowerCase(), ts))
       .sort(sort === 'recent' ? (a, b) => b.latest.localeCompare(a.latest) : (a, b) => a.name.localeCompare(b.name));
     const exact = q && all.some((g) => g.key === store.sourceKey(q));
     return [
@@ -159,7 +129,7 @@ export function listView(root, { tab }) {
       h('ul', { class: 'notes' },
         refs.map((g) => h('li', {}, h('a', { href: `#/ref/${encodeURIComponent(g.name)}` },
           h('span', { class: 't' }, g.name),
-          h('span', { class: 'l' }, `${g.notes.length} note${g.notes.length === 1 ? '' : 's'}`)))),
+          h('span', { class: 'l' }, referenceCounts(g))))),
         q && !exact && h('li', {}, h('a', { class: 'create', href: `#/ref/${encodeURIComponent(q)}` }, `Create reference “${q}”`)),
       ),
       store.state.ready && !refs.length && !q && h('p', { class: 'empty' }, 'No references yet. Add a Source when you capture.'),
@@ -168,18 +138,20 @@ export function listView(root, { tab }) {
 
   function renderArchive(ts) {
     const notes = store.archivedFleetingNotes().filter((n) => matchesAll(n.body.toLowerCase(), ts));
-    const rows = byDay(notes.map((n) => {
+    const rows = dayGroups(notes.map((n) => {
       const days = store.daysUntilDeletion(n);
       return {
         time: store.lastTouched(n),
-        node: h('li', {}, h('a', { class: 'fleeting-item', href: `#/new?from=${encodeURIComponent(n.path)}` },
-          preview(n.body) || '(empty)',
-          h('span', { class: 'countdown' }, days == null ? 'kept' : days ? `${days}d left` : 'deleting'))),
+        node: shortRow({
+          text: preview(n.body),
+          href: `#/new?from=${encodeURIComponent(n.path)}`,
+          aside: days == null ? 'kept' : days ? `${days}d left` : 'deleting',
+        }),
       };
     }));
     return [
       h('p', { class: 'hint' }, `Fleeting notes land here after ${store.ARCHIVE_AFTER_DAYS} days and are deleted ${store.DELETE_AFTER_DAYS} days after their last edit.`),
-      rows.length ? h('ul', { class: 'notes fleeting' }, rows) : store.state.ready && h('p', { class: 'empty' }, ts.length ? 'No matches.' : 'Nothing archived.'),
+      rows.length ? h('ul', { class: 'notes short' }, rows) : store.state.ready && h('p', { class: 'empty' }, ts.length ? 'No matches.' : 'Nothing archived.'),
     ];
   }
 
