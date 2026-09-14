@@ -10,4 +10,10 @@ export function getConfig() {
 
 export function setConfig(c) {
   localStorage.setItem(KEY, JSON.stringify(c));
+  persistStorage();
+}
+
+/** Ask the browser not to evict this site's storage (token, outbox, drafts) under storage pressure. */
+export function persistStorage() {
+  navigator.storage?.persist?.().catch(() => {});
 }

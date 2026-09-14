@@ -1,4 +1,4 @@
-import { getConfig } from './config.js';
+import { getConfig, persistStorage } from './config.js';
 import * as store from './store.js';
 import { captureView } from './views/capture.js';
 import { configView } from './views/config.js';
@@ -55,11 +55,15 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+// A launcher saved from the setup screen reopens at #/config. Once set up, start at capture instead.
+if (getConfig() && location.hash.startsWith('#/config')) history.replaceState(null, '', `${location.pathname}${location.search}#/`);
+
 route();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
 if (getConfig()) {
+  persistStorage();
   store.flushOutbox();
   // Warm the index in the background so autocomplete and the list are ready.
   store.loadCached().then(() => store.refresh());

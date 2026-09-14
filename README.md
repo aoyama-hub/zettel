@@ -9,7 +9,8 @@ A small, grayscale Zettelkasten web app. It's a static site with no backend and 
    - Repository access: *Only select repositories* → your notes repo
    - Permissions: **Contents: Read and write** (Metadata: read is added automatically)
 3. **Deploy this app repo** to GitHub Pages: push these files, then Settings → Pages → *Deploy from a branch* → `main` / root.
-4. Open the Pages URL on your phone and enter the token, owner, repo, and branch. They're stored in this browser's `localStorage`. Settings is at the bottom of the notes list if you need to change them.
+4. Open the Pages URL on your phone and enter the token, owner, repo, and branch. They're stored in this browser's `localStorage`, so you only enter them once per browser (or per installed app). Settings is at the bottom of the notes list if you need to change them.
+5. Optional: install it. On iPhone use Share → Add to Home Screen, in Safari on Mac use File → Add to Dock, and in Chrome use Install page as app. It opens straight to capture.
 
 Local development needs any static server (ES modules don't load from `file://`):
 
@@ -39,6 +40,7 @@ Body in markdown with [[Alpha]] style links.
 ## Behaviour notes
 
 - **Capture**: tapping *New* saves the text to a local outbox right away, clears the box, and commits in the background. If a commit fails (offline, bad token), the note stays in the outbox. The app retries on the next capture, when the network comes back, or when the app becomes visible again. Tap the status text to retry now. The source field is cleared after each note, so the next note doesn't silently become a literature note.
+- **Processing**: fleeting and literature notes appear under *Unprocessed* at the top of the notes list. Tap one to start a permanent note prefilled with its text. Add a title, rewrite it, and tap **Make permanent**: that saves the note and archives the original in one step. **Delete original** discards a capture you don't want to keep.
 - **Reading**: existing notes open rendered, with headings, lists, tasks, quotes, code, tables, and links. `[[Links]]` are tappable, and links to notes that don't exist yet are dotted and create the note. Task checkboxes can be ticked while reading.
 - **Editing**: tap anywhere in a note to edit it; the cursor lands where you tapped. Tap the title to edit the title. **Done** (or Esc) goes back to reading. On phones a toolbar above the keyboard inserts `[[ ]]`, headings, lists, and tasks. Enter continues a list, and Enter on an empty item ends it. On desktop, `e` starts editing and Cmd/Ctrl+S saves.
 - **Saving**: autosaves after 4 s of idle time, and right away on Done, on leaving the note, or when the page is hidden. Unsaved edits are also kept on the device and restored if the tab is killed before a commit lands. If the file was changed on another device, the status shows *Changed on another device. Tap to overwrite.*

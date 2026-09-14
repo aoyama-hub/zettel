@@ -113,8 +113,9 @@ export function editorView(root, { path, title: initialTitle, from }) {
         return;
       }
     }
-    fromRow.replaceChildren(...sourceControls(src));
-    fromRow.hidden = false;
+    if (src.archived) return;
+    source = src;
+    renderSource();
     // Prefill a fresh note with the source text to distil, unless the user already typed.
     if (!doc.path && build() === lastSaved) {
       bodyEl.value = src.body.trim() + (src.fm.source ? `\n\nSource: ${src.fm.source}` : '');
@@ -339,7 +340,7 @@ export function editorView(root, { path, title: initialTitle, from }) {
         const t = titleEl.value.trim();
         doc.path = store.freePath('permanent', slugify(t) || timestampName());
         originalTitle = t;
-        history.replaceState(null, '', `#/note/${gh.encPath(doc.path)}${from ? `?from=${encodeURIComponent(from)}` : ''}`);
+        history.replaceState(null, '', `#/note/${gh.encPath(doc.path)}${source ? `?from=${encodeURIComponent(source.path)}` : ''}`);
       }
       try {
         doc.sha = await gh.putFile(doc.path, content, doc.sha, `${doc.sha ? 'Update' : 'Add'} ${basename(doc.path)}`);
@@ -455,60 +456,77 @@ export function editorView(root, { path, title: initialTitle, from }) {
     }
   }, { class: 'quiet' });
 
-  // ---- source (fleeting / literature) being processed ----
+  // ---- turning a fleeting / literature note into this permanent note ----
 
   const fromRow = h('div', { class: 'from', hidden: true });
+  let source = null; // the note being processed, until it is archived or deleted
 
-  function sourceControls(src) {
-    const text = h('div', { class: 'from-text', hidden: true }, src.body.trim());
-    const actions = h('span', { class: 'from-actions' });
-    const done = (message) => {
-      actions.replaceChildren(h('span', { class: 'muted' }, message));
-      if (!doc.path && build() === lastSaved) location.hash = '#/notes';
-    };
-    const current = () => store.state.notes.get(src.path) || src;
+  const sourceNote = () => store.state.notes.get(source.path) || source;
 
-    if (src.archived) {
-      actions.append(h('span', { class: 'muted' }, 'Source archived'));
-    } else {
-      const archive = h('button', {
-        type: 'button',
-        class: 'quiet',
-        onClick: async () => {
-          archive.disabled = true;
-          try {
-            const n = current();
-            const content = serializeNote({ fm: { ...n.fm, archived: true }, extra: n.extra, body: n.body });
-            const sha = await gh.putFile(n.path, content, n.sha, `Archive ${basename(n.path)}`);
-            store.upsertLocal(n.path, sha, content);
-            done('Source archived');
-          } catch (e) {
-            archive.disabled = false;
-            setStatus(e.message, true);
-          }
-        },
-      }, 'Archive source');
-      const remove = confirmButton('Delete source', 'Confirm delete', async () => {
-        try {
-          const n = current();
-          await gh.deleteFile(n.path, n.sha, `Delete ${basename(n.path)}`);
-          store.removeLocal(n.path);
-          done('Source deleted');
-        } catch (e) {
-          setStatus(e.message, true);
-        }
-      }, { class: 'quiet' });
-      actions.append(archive, remove);
-    }
-
-    const label = [src.type, formatDate(src.fm.created_at)].filter(Boolean).join(' · ');
-    return [
-      h('div', { class: 'from-bar' },
-        h('button', { type: 'button', class: 'quiet', onClick: () => { text.hidden = !text.hidden; } }, `From ${label}`),
-        actions,
+  function renderSource() {
+    fromRow.hidden = !source;
+    if (!source) return fromRow.replaceChildren();
+    const original = h('div', { class: 'from-text', hidden: true }, source.body.trim());
+    const toggle = h('button', {
+      type: 'button',
+      class: 'quiet',
+      onClick: () => {
+        original.hidden = !original.hidden;
+        toggle.textContent = original.hidden ? 'Show original' : 'Hide original';
+      },
+    }, 'Show original');
+    const kind = source.type === 'literature' ? 'literature note' : 'fleeting note';
+    const when = formatDate(source.fm.created_at);
+    fromRow.replaceChildren(
+      h('p', { class: 'from-intro' },
+        `Turning a ${kind}${when ? ` from ${when}` : ''} into a permanent note. Add a title and rewrite it in your own words.`),
+      h('div', { class: 'from-actions' },
+        h('button', { type: 'button', class: 'primary', onClick: makePermanent }, 'Make permanent'),
+        toggle,
+        confirmButton('Delete original', 'Confirm delete', deleteSource, { class: 'quiet' }),
       ),
-      text,
-    ];
+      original,
+    );
+  }
+
+  // Save this note, then archive the original so it leaves the Unprocessed list.
+  async function makePermanent() {
+    if (!titleEl.value.trim()) {
+      setStatus('Add a title first');
+      setMode('edit', { focus: 'title' });
+      return;
+    }
+    setMode('read');
+    await save();
+    if (conflict || !doc.path || build() !== lastSaved) return; // the status line explains what failed
+    try {
+      const n = sourceNote();
+      const content = serializeNote({ fm: { ...n.fm, archived: true }, extra: n.extra, body: n.body });
+      const sha = await gh.putFile(n.path, content, n.sha, `Archive ${basename(n.path)}`);
+      store.upsertLocal(n.path, sha, content);
+      finishSource('Saved as a permanent note. Original archived.');
+    } catch (e) {
+      setStatus(`${e.message} Tap Make permanent to retry.`, true);
+    }
+  }
+
+  async function deleteSource() {
+    try {
+      const n = sourceNote();
+      await gh.deleteFile(n.path, n.sha, `Delete ${basename(n.path)}`);
+      store.removeLocal(n.path);
+      finishSource('Original deleted');
+    } catch (e) {
+      setStatus(e.message, true);
+    }
+  }
+
+  function finishSource(message) {
+    source = null;
+    renderSource();
+    history.replaceState(null, '', location.hash.replace(/\?from=[^&]*/, ''));
+    toast(message);
+    if (!doc.path && build() === lastSaved) location.hash = '#/notes';
   }
 
   // ---- linked notes strip ----

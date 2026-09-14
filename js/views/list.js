@@ -3,6 +3,7 @@ import { formatDate, h } from '../dom.js';
 import * as store from '../store.js';
 
 const FILTER = 'zk.filter';
+const INBOX_OPEN = 'zk.inboxOpen';
 
 export function listView(root) {
   const filter = h('input', {
@@ -30,9 +31,23 @@ export function listView(root) {
   const msg = h('p', { class: 'msg', role: 'status' });
   const newLink = h('a', { class: 'new', href: '#/new' });
   const list = h('ul', { class: 'notes' });
-  const inboxHead = h('h2', {});
+  const inboxCount = h('span', {});
+  const inboxAction = h('span', { class: 'inbox-action' });
+  const inboxBody = h('div', { hidden: localStorage.getItem(INBOX_OPEN) === '0' },
+    h('p', { class: 'inbox-hint' }, 'Tap one to rewrite it as a permanent note.'),
+  );
   const inboxList = h('ul', { class: 'notes inbox-list' });
-  const inbox = h('section', { class: 'inbox' }, inboxHead, inboxList);
+  inboxBody.append(inboxList);
+  const inboxToggle = h('button', {
+    type: 'button',
+    class: 'inbox-toggle',
+    onClick: () => {
+      inboxBody.hidden = !inboxBody.hidden;
+      try { localStorage.setItem(INBOX_OPEN, inboxBody.hidden ? '0' : '1'); } catch {}
+      render();
+    },
+  }, inboxCount, inboxAction);
+  const inbox = h('section', { class: 'inbox' }, inboxToggle, inboxBody);
 
   const visible = (q) => {
     const k = q.toLowerCase();
@@ -65,7 +80,9 @@ export function listView(root) {
 
     const pending = store.inboxNotes();
     inbox.hidden = Boolean(q) || !pending.length;
-    inboxHead.textContent = `Unprocessed · ${pending.length}`;
+    inboxCount.textContent = `Unprocessed · ${pending.length}`;
+    inboxAction.textContent = inboxBody.hidden ? 'Show' : 'Hide';
+    inboxToggle.setAttribute('aria-expanded', String(!inboxBody.hidden));
     inboxList.replaceChildren(
       ...pending.map((n) =>
         h('li', {}, h('a', { href: `#/new?from=${encodeURIComponent(n.path)}` },
@@ -81,9 +98,9 @@ export function listView(root) {
       h('header', { class: 'list-head' }, filter, h('a', { class: 'btn quiet', href: '#/' }, 'Capture')),
       h('div', { class: 'scroll' },
         msg,
+        inbox,
         newLink,
         list,
-        inbox,
         h('footer', { class: 'list-foot' }, h('a', { href: '#/config' }, 'Settings')),
       ),
     ),
