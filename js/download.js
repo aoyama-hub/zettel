@@ -1,8 +1,6 @@
 // Bundle permanent notes into one plain-text file that reads cleanly for an LLM, and hand it to the user.
 import { h } from './dom.js';
 
-const RULE = '='.repeat(64);
-
 export const isoDay = (value) => {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return 'unknown';
@@ -10,25 +8,20 @@ export const isoDay = (value) => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
 
+/**
+ * Minimal formatting to keep token counts low:
+ *   Title
+ *   2026-08-25 · Reference; Other reference
+ *   body
+ *   ---
+ */
 export function permanentNotesText(notes) {
-  const today = isoDay(Date.now());
-  const head = [
-    'ZETTELKASTEN: PERMANENT NOTES',
-    `${notes.length} note${notes.length === 1 ? '' : 's'}, exported ${today}`,
-    'Each note begins with a separator line, then its TITLE, CREATED date, and REFERENCES (sources) when it has any. [[Double brackets]] link to other notes by title.',
-  ].join('\n');
-  const blocks = notes.map((n, i) =>
-    [
-      RULE,
-      `NOTE ${i + 1} OF ${notes.length}`,
-      `TITLE: ${n.title}`,
-      `CREATED: ${isoDay(n.fm.created_at)}`,
-      ...(n.references?.length ? [`REFERENCES: ${n.references.join('; ')}`] : []),
-      RULE,
-      '',
-      n.body.trim() || '(empty)',
-    ].join('\n'));
-  return `${head}\n\n${blocks.join('\n\n')}\n`;
+  const blocks = notes.map((n) => {
+    const meta = [isoDay(n.fm.created_at), n.references?.length ? n.references.join('; ') : ''].filter(Boolean).join(' · ');
+    const body = n.body.trim().replace(/\n{3,}/g, '\n\n');
+    return [n.title, meta, body].filter(Boolean).join('\n');
+  });
+  return `${blocks.join('\n---\n')}\n`;
 }
 
 /** Save text as a .txt file: a normal download on desktop, the share sheet (Save to Files) on iPhone/iPad. */
