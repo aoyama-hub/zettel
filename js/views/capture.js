@@ -24,18 +24,47 @@ export function captureView(root) {
   const source = h('input', {
     class: 'source-input',
     hidden: true,
-    placeholder: 'Title, URL, or citation',
+    placeholder: 'Book, article, interview, post, or URL',
     autocapitalize: 'off',
     spellcheck: false,
     'aria-label': 'Source',
-    onInput: syncChip,
+    onInput: () => {
+      syncChip();
+      renderSuggestions();
+    },
+    onFocus: renderSuggestions,
+    onBlur: () => setTimeout(() => { suggestions.hidden = true; }, 0),
     onKeydown: (e) => {
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) {
         e.preventDefault();
         text.focus();
       }
     },
   });
+
+  // Existing references to pick from, so notes on the same source group together.
+  const suggestions = h('div', { class: 'source-suggest', hidden: true });
+
+  function renderSuggestions() {
+    const k = store.sourceKey(source.value);
+    const matches = store.references().filter((g) => g.key !== k && g.key.includes(k)).slice(0, 5);
+    suggestions.hidden = source.hidden || document.activeElement !== source || !matches.length;
+    suggestions.replaceChildren(
+      ...matches.map((g) =>
+        h('button', {
+          type: 'button',
+          class: 'quiet',
+          onPointerdown: keepFocus,
+          onMousedown: keepFocus,
+          onClick: () => {
+            source.value = g.name;
+            syncChip();
+            suggestions.hidden = true;
+            text.focus();
+          },
+        }, g.name)),
+    );
+  }
 
   const chip = h('button', {
     type: 'button',
@@ -71,6 +100,7 @@ export function captureView(root) {
       text.value = '';
       source.value = '';
       source.hidden = true;
+      suggestions.hidden = true;
       syncChip();
       try { localStorage.removeItem(DRAFT); } catch {}
     }
@@ -92,6 +122,7 @@ export function captureView(root) {
     h('main', { class: 'view capture' },
       h('div', { class: 'capture-top' }, chip, status),
       source,
+      suggestions,
       text,
       h('div', { class: 'bar' },
         h('a', { class: 'btn quiet', href: '#/notes', onPointerdown: keepFocus }, 'Exit'),

@@ -137,6 +137,73 @@ export function deleteFile(path, sha, message) {
   });
 }
 
+// ---- Deletion safety ----
+// The app only ever removes notes automatically from fleeting/. Permanent and literature notes are never
+// deleted by any automatic path; these checks sit at the lowest layer so no caller can get around them.
+const FLEETING_PATH = /^fleeting\/[^/]+\.md$/;
+
+function assertFleetingPath(path) {
+  if (!FLEETING_PATH.test(path)) throw new GitHubError(`Refusing to remove ${path}: only fleeting notes can be removed.`);
+}
+
+/** Delete a fleeting note (promotion, discard). Throws for any path outside fleeting/. */
+export function deleteFleetingFile(path, sha, message) {
+  assertFleetingPath(path);
+  return deleteFile(path, sha, message);
+}
+
+/** Git blob sha for text content, matching what GitHub computes. */
+export async function gitBlobSha(text) {
+  const bytes = new TextEncoder().encode(text);
+  const header = new TextEncoder().encode(`blob ${bytes.length}\0`);
+  const all = new Uint8Array(header.length + bytes.length);
+  all.set(header);
+  all.set(bytes, header.length);
+  const digest = await crypto.subtle.digest('SHA-1', all);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * One commit for the fleeting-note cleanup: writes ({ path, content }) and removals ({ path, remove: true }).
+ * Every path must be inside fleeting/. Retries once if the branch moved underneath.
+ */
+export function commitCleanup(changes, message) {
+  for (const c of changes) assertFleetingPath(c.path);
+  return serial(async () => {
+    const cfg = getConfig();
+    const repo = repoPath(cfg);
+    for (let attempt = 0; ; attempt++) {
+      const ref = await request('GET', `${repo}/git/ref/heads/${encPath(cfg.branch)}`);
+      const parent = ref.object.sha;
+      const base = await request('GET', `${repo}/git/commits/${parent}`);
+      const tree = await request('POST', `${repo}/git/trees`, {
+        body: {
+          base_tree: base.tree.sha,
+          tree: changes.map((c) =>
+            c.remove
+              ? { path: c.path, mode: '100644', type: 'blob', sha: null }
+              : { path: c.path, mode: '100644', type: 'blob', content: c.content }),
+        },
+      });
+      const commit = await request('POST', `${repo}/git/commits`, { body: { message, tree: tree.sha, parents: [parent] } });
+      try {
+        await request('PATCH', `${repo}/git/refs/heads/${encPath(cfg.branch)}`, { body: { sha: commit.sha } });
+        return;
+      } catch (e) {
+        if (attempt >= 1 || e.status !== 422) throw e;
+      }
+    }
+  });
+}
+
+/** Date of the newest commit touching path whose message doesn't start with skipPrefix (null if unknown). */
+export async function lastCommitDate(path, skipPrefix) {
+  const cfg = getConfig();
+  const commits = await request('GET', `${repoPath(cfg)}/commits?path=${encodeURIComponent(path)}&sha=${encodeURIComponent(cfg.branch)}&per_page=10`);
+  const hit = commits.find((c) => !c.commit.message.startsWith(skipPrefix));
+  return hit ? Date.parse(hit.commit.committer?.date || hit.commit.author?.date) : null;
+}
+
 /** True when a create failed because the path already exists. */
 export const isExistsError = (e) => e.status === 422 && /sha/i.test(e.detail);
 

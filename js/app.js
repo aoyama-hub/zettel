@@ -1,9 +1,11 @@
 import { getConfig, persistStorage } from './config.js';
+import { runCleanup } from './cleanup.js';
 import * as store from './store.js';
 import { captureView } from './views/capture.js';
 import { configView } from './views/config.js';
 import { editorView } from './views/editor.js';
 import { listView } from './views/list.js';
+import { referenceView } from './views/reference.js';
 
 const root = document.getElementById('app');
 let teardown = null;
@@ -21,7 +23,10 @@ function route() {
   teardown = null;
 
   if (path === '/config') teardown = configView(root);
-  else if (path === '/notes') teardown = listView(root);
+  else if (path === '/notes') teardown = listView(root, { tab: 'notes' });
+  else if (path === '/refs') teardown = listView(root, { tab: 'refs' });
+  else if (path === '/archive') teardown = listView(root, { tab: 'archive' });
+  else if (path.startsWith('/ref/')) teardown = referenceView(root, { name: decodeURIComponent(path.slice('/ref/'.length)) });
   else if (path.startsWith('/note/')) {
     const notePath = path.slice('/note/'.length).split('/').map(decodeURIComponent).join('/');
     teardown = editorView(root, { path: notePath, from: params.get('from') });
@@ -51,7 +56,7 @@ document.addEventListener('visibilitychange', () => {
   store.flushOutbox();
   if (Date.now() - lastRefresh > 60_000) {
     lastRefresh = Date.now();
-    store.refresh();
+    store.refresh().then(() => runCleanup());
   }
 });
 
@@ -66,5 +71,5 @@ if (getConfig()) {
   persistStorage();
   store.flushOutbox();
   // Warm the index in the background so autocomplete and the list are ready.
-  store.loadCached().then(() => store.refresh());
+  store.loadCached().then(() => store.refresh()).then(() => runCleanup());
 }

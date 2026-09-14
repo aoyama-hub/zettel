@@ -2,7 +2,7 @@
 export const TYPES = ['fleeting', 'literature', 'permanent'];
 
 // Keys this app reads and rewrites, in output order. Any other frontmatter keys are preserved verbatim.
-const KNOWN = ['title', 'type', 'source', 'created_at', 'links', 'archived'];
+const KNOWN = ['title', 'type', 'source', 'created_at', 'updated_at', 'links', 'archived', 'archived_at'];
 
 export function parseNote(text) {
   const m = text.match(/^---\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(?:\r?\n|$)/);

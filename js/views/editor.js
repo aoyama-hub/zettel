@@ -19,6 +19,7 @@ export function editorView(root, { path, title: initialTitle, from }) {
   let mode = path && !from ? 'read' : 'edit';
   let loaded = false;
   let deleted = false;
+  let mounted = true;
   let conflict = false;
   let timer = null;
   let savedTimer = null;
@@ -113,7 +114,6 @@ export function editorView(root, { path, title: initialTitle, from }) {
         return;
       }
     }
-    if (src.archived) return;
     source = src;
     renderSource();
     // Prefill a fresh note with the source text to distil, unless the user already typed.
@@ -137,7 +137,7 @@ export function editorView(root, { path, title: initialTitle, from }) {
       document.activeElement?.blur();
       renderRead();
       if (leavingEdit) {
-        save();
+        save().then(completeSource);
         scrollReaderToLine(caretLine);
       }
       return;
@@ -456,77 +456,74 @@ export function editorView(root, { path, title: initialTitle, from }) {
     }
   }, { class: 'quiet' });
 
-  // ---- turning a fleeting / literature note into this permanent note ----
+  // ---- the fleeting / literature note this permanent note is made from ----
 
   const fromRow = h('div', { class: 'from', hidden: true });
-  let source = null; // the note being processed, until it is archived or deleted
+  let source = null; // until the original has been deleted (fleeting) or marked processed (literature)
+  let completing = null;
 
-  const sourceNote = () => store.state.notes.get(source.path) || source;
+  const latestSource = () => store.state.notes.get(source.path) || source;
+  const dropFromParam = () => history.replaceState(null, '', location.hash.replace(/\?from=[^&]*/, ''));
 
   function renderSource() {
     fromRow.hidden = !source;
     if (!source) return fromRow.replaceChildren();
+    const fleeting = store.isFleeting(source);
     const original = h('div', { class: 'from-text', hidden: true }, source.body.trim());
-    const toggle = h('button', {
-      type: 'button',
-      class: 'quiet',
-      onClick: () => {
-        original.hidden = !original.hidden;
-        toggle.textContent = original.hidden ? 'Show original' : 'Hide original';
-      },
-    }, 'Show original');
-    const kind = source.type === 'literature' ? 'literature note' : 'fleeting note';
-    const when = formatDate(source.fm.created_at);
+    const label = [fleeting ? 'From fleeting note' : `From ${source.fm.source || 'literature note'}`, formatDate(source.fm.created_at)]
+      .filter(Boolean)
+      .join(' · ');
     fromRow.replaceChildren(
-      h('p', { class: 'from-intro' },
-        `Turning a ${kind}${when ? ` from ${when}` : ''} into a permanent note. Add a title and rewrite it in your own words.`),
-      h('div', { class: 'from-actions' },
-        h('button', { type: 'button', class: 'primary', onClick: makePermanent }, 'Make permanent'),
-        toggle,
-        confirmButton('Delete original', 'Confirm delete', deleteSource, { class: 'quiet' }),
+      h('div', { class: 'from-bar' },
+        h('button', { type: 'button', class: 'quiet', title: 'Show original', onClick: () => { original.hidden = !original.hidden; } }, label),
+        fleeting && h('span', { class: 'from-actions' }, confirmButton('Delete', 'Confirm delete', discardSource, { class: 'quiet' })),
       ),
       original,
     );
   }
 
-  // Save this note, then archive the original so it leaves the Unprocessed list.
-  async function makePermanent() {
-    if (!titleEl.value.trim()) {
-      setStatus('Add a title first');
-      setMode('edit', { focus: 'title' });
-      return;
-    }
-    setMode('read');
-    await save();
-    if (conflict || !doc.path || build() !== lastSaved) return; // the status line explains what failed
-    try {
-      const n = sourceNote();
-      const content = serializeNote({ fm: { ...n.fm, archived: true }, extra: n.extra, body: n.body });
-      const sha = await gh.putFile(n.path, content, n.sha, `Archive ${basename(n.path)}`);
-      store.upsertLocal(n.path, sha, content);
-      finishSource('Saved as a permanent note. Original archived.');
-    } catch (e) {
-      setStatus(`${e.message} Tap Make permanent to retry.`, true);
-    }
+  // Once this note is saved with a title: delete a fleeting original; mark a literature original processed.
+  // Literature notes are never deleted.
+  function completeSource() {
+    if (completing) return completing;
+    if (!source || deleted || conflict || !doc.path || !titleEl.value.trim() || build() !== lastSaved) return Promise.resolve();
+    completing = (async () => {
+      const n = latestSource();
+      try {
+        if (store.isFleeting(n)) {
+          await store.deleteFleeting(n, `Delete ${basename(n.path)} (made permanent as ${basename(doc.path)})`);
+          toast('Fleeting note deleted');
+        } else if (n.type === 'literature' && !n.archived) {
+          const content = serializeNote({ fm: { ...n.fm, archived: true }, extra: n.extra, body: n.body });
+          const sha = await gh.putFile(n.path, content, n.sha, `Mark ${basename(n.path)} processed`);
+          store.upsertLocal(n.path, sha, content);
+        }
+        source = null;
+        if (mounted) {
+          renderSource();
+          dropFromParam();
+        }
+      } catch (e) {
+        toast(`Couldn't update the original note: ${e.message}`);
+      } finally {
+        completing = null;
+      }
+    })();
+    return completing;
   }
 
-  async function deleteSource() {
+  async function discardSource() {
     try {
-      const n = sourceNote();
-      await gh.deleteFile(n.path, n.sha, `Delete ${basename(n.path)}`);
-      store.removeLocal(n.path);
-      finishSource('Original deleted');
+      const n = latestSource();
+      await store.deleteFleeting(n, `Delete ${basename(n.path)}`);
+      source = null;
+      renderSource();
+      dropFromParam();
+      toast('Fleeting note deleted');
+      if (!doc.path && build() === lastSaved) location.hash = '#/notes';
     } catch (e) {
       setStatus(e.message, true);
     }
-  }
-
-  function finishSource(message) {
-    source = null;
-    renderSource();
-    history.replaceState(null, '', location.hash.replace(/\?from=[^&]*/, ''));
-    toast(message);
-    if (!doc.path && build() === lastSaved) location.hash = '#/notes';
   }
 
   // ---- linked notes strip ----
@@ -652,8 +649,12 @@ export function editorView(root, { path, title: initialTitle, from }) {
     document.removeEventListener('visibilitychange', onVisibility);
     document.removeEventListener('keydown', onKey);
     window.visualViewport?.removeEventListener('resize', onViewport);
+    mounted = false;
     if (deleted) return;
-    save().then(renameIfNeeded).catch((e) => toast(`Rename failed: ${e.message}`));
+    save()
+      .then(completeSource)
+      .then(renameIfNeeded)
+      .catch((e) => toast(`Rename failed: ${e.message}`));
   };
 }
 

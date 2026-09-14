@@ -161,10 +161,80 @@ export function removeLocal(path) {
 
 export const permanentNotes = () => [...state.notes.values()].filter((n) => n.type === 'permanent');
 
+// ---- Fleeting note lifecycle ----
+
+export const DAY = 24 * 60 * 60 * 1000;
+export const ARCHIVE_AFTER_DAYS = 7;
+export const DELETE_AFTER_DAYS = 90;
+
+/** Newest known change time for a note: updated_at, created_at, or the capture timestamp in its filename. */
+export function lastTouched(n) {
+  const dates = [Date.parse(n.fm.updated_at), Date.parse(n.fm.created_at)].filter((t) => !Number.isNaN(t));
+  if (dates.length) return Math.max(...dates);
+  const m = n.path.match(/\/(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})[^/]*\.md$/);
+  return m ? new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime() : null;
+}
+
+/**
+ * Whether a note is a fleeting note the app may remove. Literature and permanent notes never qualify.
+ * strict (automatic cleanup) also requires the note to be explicitly tagged `type: fleeting`.
+ */
+export function isFleeting(n, { strict = false } = {}) {
+  if (!n || !/^fleeting\/[^/]+\.md$/.test(n.path) || n.type !== 'fleeting' || n.fm.source) return false;
+  return strict ? n.fm.type === 'fleeting' : n.fm.type === undefined || n.fm.type === 'fleeting';
+}
+
+const ageDays = (n, now = Date.now()) => {
+  const t = lastTouched(n);
+  return t == null ? 0 : (now - t) / DAY;
+};
+
+/** Fleeting notes that left the inbox: archived, or old enough that the next cleanup will archive them. */
+export const isArchivedFleeting = (n) =>
+  n.type === 'fleeting' && (n.archived || (isFleeting(n, { strict: true }) && ageDays(n) > ARCHIVE_AFTER_DAYS));
+
+/** Days until cleanup deletes the note, or null when cleanup will never delete it (not tagged fleeting). */
+export const daysUntilDeletion = (n) =>
+  isFleeting(n, { strict: true }) ? Math.max(0, Math.ceil(DELETE_AFTER_DAYS - ageDays(n))) : null;
+
+const newestFirst = (a, b) => String(b.fm.created_at || b.path).localeCompare(String(a.fm.created_at || a.path));
+
 export const inboxNotes = () =>
   [...state.notes.values()]
-    .filter((n) => n.type !== 'permanent' && !n.archived)
-    .sort((a, b) => String(b.fm.created_at || b.path).localeCompare(String(a.fm.created_at || a.path)));
+    .filter((n) => n.type !== 'permanent' && !n.archived && !isArchivedFleeting(n))
+    .sort(newestFirst);
+
+export const archivedFleetingNotes = () => [...state.notes.values()].filter(isArchivedFleeting).sort(newestFirst);
+
+/** Delete a fleeting note the user promoted or discarded. Refuses anything that isn't a fleeting note. */
+export async function deleteFleeting(n, message) {
+  if (!isFleeting(n)) throw new Error('Only fleeting notes can be deleted this way.');
+  await gh.deleteFleetingFile(n.path, n.sha, message);
+  removeLocal(n.path);
+}
+
+// ---- References: literature notes grouped by their source ----
+
+export const sourceKey = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+export function references() {
+  const groups = new Map();
+  for (const n of state.notes.values()) {
+    if (n.type !== 'literature') continue;
+    const name = String(n.fm.source || '').trim() || 'No source';
+    const key = sourceKey(name);
+    const group = groups.get(key) || { key, name, notes: [], latest: '' };
+    group.notes.push(n);
+    const t = String(n.fm.created_at || '');
+    if (t >= group.latest) {
+      group.latest = t;
+      group.name = name;
+    }
+    groups.set(key, group);
+  }
+  for (const g of groups.values()) g.notes.sort((a, b) => -newestFirst(a, b));
+  return [...groups.values()].sort((a, b) => b.latest.localeCompare(a.latest));
+}
 
 export function findByTitle(title) {
   const k = title.trim().toLowerCase();
@@ -194,6 +264,7 @@ const readOutbox = () => {
 const writeOutbox = (items) => localStorage.setItem(OUTBOX, JSON.stringify(items));
 
 export const pendingCount = () => readOutbox().length;
+export const pendingCaptures = () => readOutbox();
 
 export function capture({ text, source }) {
   const now = new Date();
