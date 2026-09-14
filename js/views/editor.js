@@ -4,7 +4,6 @@ import { confirmButton, formatDate, h, insertText, keepFocus, toast } from '../d
 import { renderMarkdown } from '../markdown.js';
 import { basename, extractLinks, serializeNote, slugify, timestampName, toNote } from '../note.js';
 import * as store from '../store.js';
-import { openExport } from './export.js';
 
 // Autosave after this much idle time; leaving, Done, and hiding the page save immediately.
 const SAVE_DELAY = 4000;
@@ -24,7 +23,6 @@ export function editorView(root, { path, title: initialTitle, from }) {
   let timer = null;
   let savedTimer = null;
   let chain = Promise.resolve();
-  let closeExport = null;
   let renderedTitles = '';
 
   // ---- elements ----
@@ -566,11 +564,6 @@ export function editorView(root, { path, title: initialTitle, from }) {
 
   // ---- mount ----
 
-  const current = () => {
-    const body = bodyEl.value;
-    return { path: doc.path, title: titleEl.value.trim(), body, links: extractLinks(body) };
-  };
-
   const main = h('main', { class: `view editor ${mode === 'read' ? 'reading' : 'editing'}` },
     h('header', { class: 'ed-bar' },
       h('a', { class: 'btn quiet', href: '#/notes' }, 'Notes'),
@@ -578,7 +571,6 @@ export function editorView(root, { path, title: initialTitle, from }) {
       h('span', { class: 'spacer' }),
       h('span', { class: 'read-actions' },
         h('button', { type: 'button', class: 'quiet', onClick: () => setMode('edit') }, 'Edit'),
-        h('button', { type: 'button', class: 'quiet', onClick: () => { closeExport = openExport(current); } }, 'Export'),
         deleteBtn,
       ),
       h('button', { type: 'button', class: 'done-btn', onClick: () => setMode('read') }, 'Done'),
@@ -614,7 +606,6 @@ export function editorView(root, { path, title: initialTitle, from }) {
   const flush = () => { if (timer) save(); };
   const onVisibility = () => document.visibilityState === 'hidden' && flush();
   const onKey = (e) => {
-    if (document.querySelector('.sheet')) return;
     const typingTarget = e.target.closest?.('input, textarea, [contenteditable]');
     if ((e.metaKey || e.ctrlKey) && e.key === 's') {
       e.preventDefault();
@@ -644,7 +635,6 @@ export function editorView(root, { path, title: initialTitle, from }) {
   return () => {
     unsubscribe();
     ac.destroy();
-    closeExport?.();
     clearTimeout(linkTimer);
     clearTimeout(savedTimer);
     window.removeEventListener('pagehide', flush);

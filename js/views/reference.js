@@ -109,7 +109,6 @@ export function referenceView(root, { name = '' }) {
           h('div', { class: 'prose' }, renderMarkdown(n.body.trim(), { resolveWiki })),
           h('div', { class: 'ref-note-meta' },
             h('span', {}, formatDate(n.fm.created_at)),
-            h('a', { href: `#/new?from=${encodeURIComponent(n.path)}` }, 'Make permanent'),
             confirmButton('Delete', 'Confirm delete', () => removeNote(n), { class: 'quiet' }),
           ),
         )),

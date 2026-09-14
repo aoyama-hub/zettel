@@ -933,46 +933,6 @@ a.unresolved {
   font-weight: 600;
 }
 
-/* ---- export sheet ---- */
-
-.sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  background: var(--backdrop);
-}
-
-.sheet {
-  width: 100%;
-  max-width: 480px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
-  background: var(--panel);
-  border-radius: 14px 14px 0 0;
-}
-
-.sheet h2 {
-  margin: 0 4px 4px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--muted);
-}
-
-.sheet button {
-  justify-content: flex-start;
-  min-height: 48px;
-  border-radius: 10px;
-}
-
-.sheet button.quiet {
-  justify-content: center;
-}
-
 /* ---- misc ---- */
 
 .toast {
@@ -1058,12 +1018,6 @@ a.unresolved {
   margin-top: 8px;
   font-size: 13px;
   color: var(--faint);
-}
-
-.ref-note-meta a {
-  color: var(--muted);
-  text-decoration-color: var(--faint);
-  text-underline-offset: 3px;
 }
 
 .ref-note-meta button {
