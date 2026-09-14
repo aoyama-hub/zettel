@@ -584,10 +584,14 @@ button.armed {
 }
 
 .ed-title {
+  display: block;
   width: 100%;
   padding: 12px 20px 4px;
   border: 0;
   background: transparent;
+  resize: none;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   font-size: 28px;
   font-weight: 700;
   line-height: 1.25;

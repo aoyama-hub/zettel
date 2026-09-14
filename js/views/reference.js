@@ -1,7 +1,7 @@
 // One reference (a book, article, interview, post, URL…): its literature notes in the same day-grouped
 // listing as the Fleeting tab, the permanent notes connected to it, and a box to add notes.
 import { encPath } from '../github.js';
-import { confirmButton, h, toast } from '../dom.js';
+import { confirmButton, h, toast, wrappingField } from '../dom.js';
 import { renderMarkdown } from '../markdown.js';
 import * as store from '../store.js';
 import { dayGroups, preview, referenceCounts, shortRow } from './rows.js';
@@ -10,7 +10,7 @@ export function referenceView(root, { name = '' }) {
   let current = name.trim();
   const open = new Set(); // paths of expanded notes
 
-  const nameInput = h('input', {
+  const nameInput = wrappingField({
     class: 'ed-title',
     placeholder: 'Reference: a book, article, interview, post, or URL',
     spellcheck: false,
@@ -165,7 +165,10 @@ export function referenceView(root, { name = '' }) {
   );
 
   render();
-  if (!current) nameInput.focus();
+  if (!current) {
+    nameInput.fit();
+    nameInput.focus();
+  }
   const unsubscribe = store.subscribe(render);
   if (!store.state.ready) store.loadCached().then(() => store.refresh());
   return unsubscribe;

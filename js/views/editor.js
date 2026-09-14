@@ -1,6 +1,6 @@
 import * as gh from '../github.js';
 import { attachWikilinkAutocomplete, caretRect } from '../autocomplete.js';
-import { confirmButton, formatDate, h, insertText, keepFocus, toast } from '../dom.js';
+import { confirmButton, formatDate, h, insertText, keepFocus, toast, wrappingField } from '../dom.js';
 import { renderMarkdown } from '../markdown.js';
 import { SOURCE_LINE, basename, extractLinks, noteReferences, serializeNote, slugify, timestampName, toNote, uniqueReferences } from '../note.js';
 import * as store from '../store.js';
@@ -29,7 +29,7 @@ export function editorView(root, { path, title: initialTitle, from }) {
   // ---- elements ----
 
   const status = h('button', { type: 'button', class: 'status quiet', onClick: onStatusClick });
-  const titleEl = h('input', {
+  const titleEl = wrappingField({
     class: 'ed-title',
     placeholder: 'Title',
     spellcheck: false,
@@ -149,6 +149,7 @@ export function editorView(root, { path, title: initialTitle, from }) {
       }
       return;
     }
+    titleEl.fit();
     if (!loaded) return;
     if (focus === 'title') {
       titleEl.focus();
@@ -249,6 +250,7 @@ export function editorView(root, { path, title: initialTitle, from }) {
   }
 
   function refresh() {
+    titleEl.fit();
     if (mode === 'read') renderRead();
     renderRefsEdit();
     renderLinked();
@@ -736,12 +738,16 @@ export function editorView(root, { path, title: initialTitle, from }) {
   let viewportFrame = 0;
   const onViewport = () => {
     cancelAnimationFrame(viewportFrame);
-    viewportFrame = requestAnimationFrame(() => document.activeElement === bodyEl && revealCaret());
+    viewportFrame = requestAnimationFrame(() => {
+      titleEl.fit(); // width changes (rotation, window resize) re-wrap the title
+      if (document.activeElement === bodyEl) revealCaret();
+    });
   };
   window.addEventListener('pagehide', flush);
   document.addEventListener('visibilitychange', onVisibility);
   document.addEventListener('keydown', onKey);
   window.visualViewport?.addEventListener('resize', onViewport);
+  window.addEventListener('resize', onViewport);
 
   refresh();
   load().then(() => from && loadSource());
@@ -756,6 +762,7 @@ export function editorView(root, { path, title: initialTitle, from }) {
     document.removeEventListener('visibilitychange', onVisibility);
     document.removeEventListener('keydown', onKey);
     window.visualViewport?.removeEventListener('resize', onViewport);
+    window.removeEventListener('resize', onViewport);
     mounted = false;
     if (deleted) return;
     save()

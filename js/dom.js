@@ -32,6 +32,31 @@ export function insertText(ta, start, end, text) {
 /** Keep focus where it is when a button is tapped (so the phone keyboard stays up). */
 export const keepFocus = (e) => e.preventDefault();
 
+/**
+ * A single-line text field that wraps: a one-row textarea that grows with its content and never holds
+ * a line break (Enter is left to the caller; pasted newlines become spaces). Call `fit()` after setting
+ * the value in code or when the field becomes visible.
+ */
+export function wrappingField(props) {
+  const el = h('textarea', { rows: 1, ...props, onInput: undefined });
+  const fit = () => {
+    if (!el.getClientRects().length) return; // hidden: nothing to measure
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  };
+  el.addEventListener('input', (e) => {
+    if (/\r|\n/.test(el.value)) {
+      const caret = el.selectionStart;
+      el.value = el.value.replace(/[ \t]*\r?\n[ \t]*/g, ' ');
+      el.setSelectionRange(Math.min(caret, el.value.length), Math.min(caret, el.value.length));
+    }
+    fit();
+    props.onInput?.(e);
+  });
+  el.fit = fit;
+  return el;
+}
+
 let toastTimer;
 export function toast(message) {
   let el = document.querySelector('.toast');
