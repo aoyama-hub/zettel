@@ -339,34 +339,66 @@ button.armed {
   text-underline-offset: 8px;
 }
 
-.filter-row {
-  padding: 2px 20px 6px;
-  border-bottom: 1px solid var(--line);
-}
-
-.filter {
-  width: 100%;
-  font-size: 16px;
-  padding: 8px 0;
-  border: 0;
-  background: transparent;
-}
-
-.new {
-  display: block;
-  padding: 14px 20px;
+.page-title {
+  font-size: 15px;
   font-weight: 600;
-  text-decoration: none;
 }
 
-.new:active {
+.search-row {
+  padding: 6px 20px 8px;
+}
+
+.search {
+  width: 100%;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: 10px;
   background: var(--press);
+  font-size: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.list-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 12px 6px 20px;
+  font-size: 13px;
+  color: var(--faint);
+}
+
+.list-tools .count {
+  flex: 1;
+}
+
+.sort {
+  display: flex;
+}
+
+.sort button {
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 0;
+  font-size: 13px;
+  color: var(--faint);
+}
+
+.sort button.active {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.list-tools button.export {
+  min-height: 32px;
+  padding: 4px 16px;
+  font-size: 14px;
 }
 
 .notes {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 0 8px;
 }
 
 .notes a {
@@ -393,54 +425,67 @@ button.armed {
   text-overflow: ellipsis;
 }
 
-.notes .empty {
-  padding: 10px 20px;
-  color: var(--faint);
-}
-
-.inbox {
-  margin-top: 28px;
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-}
-
-.inbox h2 {
-  margin: 8px 20px 0;
+.notes .day {
+  padding: 18px 20px 2px;
   font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--faint);
 }
 
-.inbox .t {
-  font-weight: 400;
+.notes .day:first-child {
+  padding-top: 8px;
 }
 
-.inbox .l {
+.notes.fleeting a,
+.notes .pending .fleeting-item {
+  display: block;
+  padding: 9px 20px;
+}
+
+.fleeting-item {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.notes.fleeting a.fleeting-item {
+  display: -webkit-box;
+}
+
+.notes .pending {
+  color: var(--faint);
+}
+
+.countdown {
+  margin-left: 8px;
   font-size: 12px;
   color: var(--faint);
 }
 
+.notes a.create {
+  color: var(--muted);
+}
+
+.empty {
+  margin: 16px 20px;
+  color: var(--faint);
+}
+
 .hint {
-  margin: 12px 20px 4px;
+  margin: 4px 20px 0;
   font-size: 13px;
   line-height: 1.45;
   color: var(--faint);
 }
 
-.archive-list .t {
-  font-weight: 400;
-  color: var(--muted);
-}
-
-.archive-list .l {
-  font-size: 12px;
-  color: var(--faint);
-}
-
 .list-foot {
+  display: flex;
+  gap: 18px;
   padding: 32px 20px calc(24px + env(safe-area-inset-bottom));
   font-size: 13px;
   color: var(--faint);

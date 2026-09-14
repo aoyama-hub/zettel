@@ -4,7 +4,7 @@ import * as store from './store.js';
 import { captureView } from './views/capture.js';
 import { configView } from './views/config.js';
 import { editorView } from './views/editor.js';
-import { listView } from './views/list.js';
+import { LAST_TAB, listView } from './views/list.js';
 import { referenceView } from './views/reference.js';
 
 const root = document.getElementById('app');
@@ -23,9 +23,13 @@ function route() {
   teardown = null;
 
   if (path === '/config') teardown = configView(root);
-  else if (path === '/notes') teardown = listView(root, { tab: 'notes' });
-  else if (path === '/refs') teardown = listView(root, { tab: 'refs' });
-  else if (path === '/archive') teardown = listView(root, { tab: 'archive' });
+  else if (path === '/notes') {
+    // Generic "back to the lists" link: reopen whichever tab was used last.
+    let last = 'fleeting';
+    try { last = sessionStorage.getItem(LAST_TAB) || last; } catch {}
+    location.replace(`#/${last}`);
+    return;
+  } else if (['/fleeting', '/permanent', '/refs', '/archive'].includes(path)) teardown = listView(root, { tab: path.slice(1) });
   else if (path.startsWith('/ref/')) teardown = referenceView(root, { name: decodeURIComponent(path.slice('/ref/'.length)) });
   else if (path.startsWith('/note/')) {
     const notePath = path.slice('/note/'.length).split('/').map(decodeURIComponent).join('/');

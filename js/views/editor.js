@@ -329,12 +329,14 @@ export function editorView(root, { path, title: initialTitle, from }) {
 
   async function doSave() {
     if (!loaded || deleted || conflict) return;
-    const content = build();
+    let content = build();
     if (content === lastSaved) {
       if (!status.classList.contains('error') && status.textContent === 'Edited') setStatus('');
       return;
     }
     setStatus('Saving…');
+    doc.fm.updated_at = new Date().toISOString(); // drives "Recent" ordering
+    content = build();
     try {
       if (!doc.path) {
         const t = titleEl.value.trim();

@@ -199,10 +199,7 @@ export const daysUntilDeletion = (n) =>
 
 const newestFirst = (a, b) => String(b.fm.created_at || b.path).localeCompare(String(a.fm.created_at || a.path));
 
-export const inboxNotes = () =>
-  [...state.notes.values()]
-    .filter((n) => n.type !== 'permanent' && !n.archived && !isArchivedFleeting(n))
-    .sort(newestFirst);
+export const fleetingNotes = () => [...state.notes.values()].filter((n) => n.type === 'fleeting' && !isArchivedFleeting(n));
 
 export const archivedFleetingNotes = () => [...state.notes.values()].filter(isArchivedFleeting).sort(newestFirst);
 
