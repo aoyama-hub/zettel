@@ -1,6 +1,6 @@
 // One reference (a book, article, interview, post, URL…): its literature notes, read in order, plus a box to add more.
 import { encPath } from '../github.js';
-import { formatDate, h } from '../dom.js';
+import { confirmButton, formatDate, h, toast } from '../dom.js';
 import { renderMarkdown } from '../markdown.js';
 import * as store from '../store.js';
 
@@ -77,6 +77,15 @@ export function referenceView(root, { name = '' }) {
     text.focus();
   }
 
+  async function removeNote(n) {
+    try {
+      await store.deleteLiteratureByUser(store.state.notes.get(n.path) || n);
+      toast('Note deleted');
+    } catch (e) {
+      status.textContent = e.message;
+    }
+  }
+
   function render() {
     const key = store.sourceKey(current);
     const group = current ? store.references().find((g) => g.key === key) : null;
@@ -101,6 +110,7 @@ export function referenceView(root, { name = '' }) {
           h('div', { class: 'ref-note-meta' },
             h('span', {}, formatDate(n.fm.created_at)),
             h('a', { href: `#/new?from=${encodeURIComponent(n.path)}` }, 'Make permanent'),
+            confirmButton('Delete', 'Confirm delete', () => removeNote(n), { class: 'quiet' }),
           ),
         )),
       ...pending.map((p) =>

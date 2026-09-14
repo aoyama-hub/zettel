@@ -1066,6 +1066,22 @@ a.unresolved {
   text-underline-offset: 3px;
 }
 
+.ref-note-meta button {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: underline;
+  text-decoration-color: var(--faint);
+  text-underline-offset: 3px;
+}
+
+.ref-note-meta button.armed {
+  color: var(--fg);
+  text-decoration-color: var(--fg);
+}
+
 .ref-cited h3 {
   margin: 8px 0 4px;
   font-size: 12px;

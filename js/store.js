@@ -210,6 +210,16 @@ export async function deleteFleeting(n, message) {
   removeLocal(n.path);
 }
 
+/**
+ * Delete a literature note the user explicitly chose to delete from its reference page (after confirming).
+ * No automatic path calls this; cleanup and promotion never remove literature notes.
+ */
+export async function deleteLiteratureByUser(n) {
+  if (!n || n.type !== 'literature' || !/^literature\/[^/]+\.md$/.test(n.path)) throw new Error('Not a literature note.');
+  await gh.deleteFile(n.path, n.sha, `Delete literature note ${n.path.split('/').pop()}`);
+  removeLocal(n.path);
+}
+
 // ---- References: literature notes grouped by their source ----
 
 export const sourceKey = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();
