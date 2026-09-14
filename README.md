@@ -35,7 +35,7 @@ Body in markdown with [[Alpha]] style links.
 - `links` is rewritten from the body's `[[wikilinks]]` on every save. Backlinks read both `links` and in-body wikilinks.
 - Frontmatter keys the app doesn't know about (`aliases`, `tags`, …) are kept as they are.
 - Captures are named `YYYYMMDD-HHmmss.md`. Permanent notes are named `slugified-title.md`. If you change a title, the file is renamed when you leave the editor. That takes two commits: create the new file, then delete the old one.
-- `archived: true` hides a note from Unprocessed. For fleeting notes it's set by the 7-day cleanup (with `archived_at`); for literature notes it means "already made permanent".
+- `archived: true`: for fleeting notes it's set by the 7-day cleanup (with `archived_at`); for literature notes it means "already made permanent".
 - **Safety**: the app never deletes literature or permanent notes on its own. Every automatic removal path, in both the note store and the GitHub API layer, refuses any file outside `fleeting/`. The only way to delete a permanent note is its **Delete** button, which asks you to confirm.
 
 ## Behaviour notes
