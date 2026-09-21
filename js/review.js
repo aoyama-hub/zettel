@@ -69,8 +69,6 @@ export function record(note, { connected }) {
   schedule();
 }
 
-export const pendingCount = () => Object.keys(read(PENDING) || {}).length;
-
 let timer = null;
 function schedule() {
   clearTimeout(timer);
@@ -91,7 +89,7 @@ export function flushReview() {
       if (!n) continue; // note is gone; drop the tally with it
       const entry = pending[path];
       const skipped = entry.reset ? 0 : store.reviewStats(n).skipped + (entry.skips || 0);
-      const fm = { ...n.fm, skipped: skipped || undefined, reviewed_at: entry.at };
+      const fm = { ...n.fm, skipped: skipped || undefined, reviewed_at: entry.at, updated_at: entry.at };
       writes.push({ path, content: serializeNote({ fm, extra: n.extra, body: n.body }) });
     }
     if (writes.length) {

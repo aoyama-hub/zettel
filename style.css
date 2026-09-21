@@ -546,14 +546,6 @@ button.armed {
   color: var(--faint);
 }
 
-.list-foot {
-  display: flex;
-  gap: 18px;
-  padding: 32px 20px calc(24px + env(safe-area-inset-bottom));
-  font-size: 13px;
-  color: var(--faint);
-}
-
 /* ---- editor ---- */
 
 .ed-bar {
@@ -1338,6 +1330,7 @@ a.unresolved {
 }
 
 .card {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -1388,40 +1381,36 @@ a.unresolved {
   color: var(--faint);
 }
 
-/* Which way the card is heading while dragging. */
-.card-stack.to-skip .card {
-  border-color: var(--muted);
-}
-
-.card-stack.to-connect .card {
-  border-color: var(--fg);
-  border-width: 2px;
-  padding: 19px 17px 11px;
-}
-
-.review-foot {
-  padding: 8px 16px 0;
-}
-
-.review-actions {
+.stamp {
+  position: absolute;
+  bottom: 52px;
+  z-index: 1;
+  background: var(--panel);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 4px;
+  padding: 4px 12px 4px 8px;
+  border: 2px solid currentColor;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .1s linear;
 }
 
-.review-actions button {
-  min-height: 40px;
-  padding: 6px 14px;
-  border-color: var(--line);
+.stamp-connect {
+  left: 16px;
+  color: var(--fg);
+  transform: rotate(-8deg);
+}
+
+.stamp-skip {
+  right: 16px;
   color: var(--muted);
-}
-
-.swipe-hint {
-  margin: 6px 0 0;
-  font-size: 12px;
-  color: var(--faint);
-  text-align: center;
+  transform: rotate(8deg);
 }
 
 /* ---- settings ---- */

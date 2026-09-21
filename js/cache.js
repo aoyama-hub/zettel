@@ -11,19 +11,6 @@ function db() {
   return dbPromise;
 }
 
-export async function cacheGet(sha) {
-  try {
-    const d = await db();
-    return await new Promise((resolve) => {
-      const req = d.transaction('blobs').objectStore('blobs').get(sha);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => resolve(undefined);
-    });
-  } catch {
-    return undefined;
-  }
-}
-
 export async function cacheSet(sha, text) {
   try {
     const d = await db();

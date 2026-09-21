@@ -178,8 +178,7 @@ export function listView(root, { tab }) {
       h('nav', { class: 'tabs', 'aria-label': 'Sections' },
         TABS.map(([key, label]) =>
           h('a', { class: key === tab ? 'tab active' : 'tab', href: `#/${key}`, 'aria-current': key === tab ? 'page' : null }, label)),
-      ),
-      h('span', { class: 'spacer' }));
+      ));
 
   root.replaceChildren(
     h('main', { class: 'view list' },

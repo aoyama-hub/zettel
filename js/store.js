@@ -190,7 +190,7 @@ const ageDays = (n, now = Date.now()) => {
 };
 
 /** Fleeting notes that left the inbox: archived, or old enough that the next cleanup will archive them. */
-export const isArchivedFleeting = (n) =>
+const isArchivedFleeting = (n) =>
   n.type === 'fleeting' && (n.archived || (isFleeting(n, { strict: true }) && ageDays(n) > ARCHIVE_AFTER_DAYS));
 
 /** Days until cleanup deletes the note, or null when cleanup will never delete it (not tagged fleeting). */
@@ -257,7 +257,7 @@ export async function deleteLiteratureByUser(n) {
 
 // ---- Review ----
 
-export const REVIEW_DUE_DAYS = 7;
+const REVIEW_DUE_DAYS = 7;
 
 export const reviewStats = (n) => ({
   skipped: Number(n.fm.skipped) || 0,

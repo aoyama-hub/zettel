@@ -1,6 +1,11 @@
 // The bottom bar: review, capture (shutter), settings.
 import { h, svg } from '../dom.js';
 import * as store from '../store.js';
+import { LAST_TAB } from './list.js';
+
+const lastTab = () => {
+  try { return sessionStorage.getItem(LAST_TAB) || 'fleeting'; } catch { return 'fleeting'; }
+};
 
 const stroke = { fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
 
@@ -36,6 +41,12 @@ export function navBar(active) {
       'aria-label': label,
       'aria-current': active === key ? 'page' : null,
       title: label,
+      // Tapping the icon you're already on goes back to the notes.
+      onClick: (e) => {
+        if (active !== key) return;
+        e.preventDefault();
+        location.hash = `#/${lastTab()}`;
+      },
     }, glyph, extra);
 
   const nav = h('nav', { class: 'bottom-nav', 'aria-label': 'Main' },

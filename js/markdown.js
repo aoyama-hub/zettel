@@ -179,7 +179,7 @@ const INLINE = new RegExp(
   'gu',
 );
 
-export function inline(text, opts = {}) {
+function inline(text, opts = {}) {
   const out = [];
   let last = 0;
   for (const m of text.matchAll(INLINE)) {

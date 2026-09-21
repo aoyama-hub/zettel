@@ -4,7 +4,7 @@ import { getConfig } from './config.js';
 
 const API = 'https://api.github.com';
 
-export class GitHubError extends Error {
+class GitHubError extends Error {
   constructor(message, status = 0, detail = '') {
     super(message);
     this.status = status;

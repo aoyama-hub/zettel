@@ -1,6 +1,6 @@
 // Review: one random permanent note at a time. Swipe left to skip, right to write a note linked to it.
 import { encPath } from '../github.js';
-import { h } from '../dom.js';
+import { h, svg } from '../dom.js';
 import { renderMarkdown } from '../markdown.js';
 import * as review from '../review.js';
 import * as store from '../store.js';
@@ -9,10 +9,18 @@ const THRESHOLD = 90; // px of horizontal travel that counts as a decision
 const DAY = 24 * 60 * 60 * 1000;
 
 export function reviewView(root) {
-  const card = h('article', { class: 'card' });
+  const stamp = (kind, label, glyph) =>
+    h('span', { class: `stamp stamp-${kind}`, 'aria-hidden': 'true' },
+      svg('svg', { viewBox: '0 0 24 24', width: 20, height: 20 }, glyph), label);
+  // Shown while dragging, so the gesture says what it will do without any buttons on screen.
+  const connectStamp = stamp('connect', 'Connect',
+    svg('path', { d: 'M9 12h6M12 9v6', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round' }));
+  const skipStamp = stamp('skip', 'Skip',
+    svg('path', { d: 'M15 9l-6 6M9 9l6 6', fill: 'none', stroke: 'currentColor', 'stroke-width': 2, 'stroke-linecap': 'round' }));
+
+  const card = h('article', { class: 'card' }, connectStamp, skipStamp);
   const stack = h('div', { class: 'card-stack' }, card);
   const progress = h('span', { class: 'progress' });
-  const hint = h('p', { class: 'swipe-hint' }, 'Swipe left to skip · right to connect');
   let current = null;
   let animating = false;
 
@@ -38,18 +46,19 @@ export function reviewView(root) {
     card.style.transition = '';
     card.style.transform = '';
     card.style.opacity = '';
+    setStamps(0);
     if (!current) {
       progress.textContent = '';
-      hint.hidden = true;
       card.classList.add('empty');
       card.replaceChildren(h('p', { class: 'empty' },
         store.state.ready ? 'No permanent notes yet. Promote a fleeting note to start reviewing.' : 'Loading…'));
       return;
     }
-    hint.hidden = false;
     card.classList.remove('empty');
     progress.textContent = `${next.index + 1} / ${next.total}`;
     card.replaceChildren(
+      connectStamp,
+      skipStamp,
       h('h2', { class: 'card-title' }, current.title),
       h('div', { class: 'prose card-body' }, renderMarkdown(current.body.trim() || '(empty)', { resolveWiki })),
       h('div', { class: 'card-meta' },
@@ -60,6 +69,12 @@ export function reviewView(root) {
     card.animate?.([{ opacity: 0, transform: 'scale(0.98)' }, { opacity: 1, transform: 'none' }], { duration: 140, easing: 'ease-out' });
   }
 
+  function setStamps(dx) {
+    const strength = (d) => Math.min(1, Math.max(0, (d - 20) / 70));
+    connectStamp.style.opacity = String(strength(dx));
+    skipStamp.style.opacity = String(strength(-dx));
+  }
+
   function decide(connect) {
     if (!current || animating) return;
     const note = current;
@@ -67,6 +82,7 @@ export function reviewView(root) {
     card.style.transition = 'transform .25s ease-out, opacity .25s ease-out';
     card.style.transform = `translateX(${connect ? 480 : -480}px) rotate(${connect ? 12 : -12}deg)`;
     card.style.opacity = '0';
+    setStamps(connect ? 120 : -120);
     review.record(note, { connected: connect });
     setTimeout(() => {
       animating = false;
@@ -105,12 +121,10 @@ export function reviewView(root) {
     dx = moveX;
     card.style.transform = `translateX(${dx}px) rotate(${dx / 22}deg)`;
     card.style.opacity = String(Math.max(0.35, 1 - Math.abs(dx) / 520));
-    stack.classList.toggle('to-connect', dx > 40);
-    stack.classList.toggle('to-skip', dx < -40);
+    setStamps(dx);
   };
 
   const onPointerUp = () => {
-    stack.classList.remove('to-connect', 'to-skip');
     if (!dragging) return;
     dragging = false;
     if (Math.abs(dx) > THRESHOLD) {
@@ -120,6 +134,7 @@ export function reviewView(root) {
       card.style.transition = 'transform .2s ease-out, opacity .2s ease-out';
       card.style.transform = '';
       card.style.opacity = '';
+      setStamps(0);
     }
   };
 
@@ -136,7 +151,7 @@ export function reviewView(root) {
   card.addEventListener('click', onClick);
 
   const onKey = (e) => {
-    if (e.target.closest('input, textarea')) return;
+    if (e.target?.closest?.('input, textarea')) return; // the target can be the document itself
     if (e.key === 'ArrowLeft') decide(false);
     else if (e.key === 'ArrowRight') decide(true);
   };
@@ -149,13 +164,6 @@ export function reviewView(root) {
         progress,
       ),
       stack,
-      h('div', { class: 'review-foot' },
-        h('div', { class: 'review-actions' },
-          h('button', { type: 'button', class: 'quiet', onClick: () => decide(false) }, 'Skip'),
-          h('button', { type: 'button', class: 'quiet', onClick: () => decide(true) }, 'Connect'),
-        ),
-        hint,
-      ),
     ),
   );
 

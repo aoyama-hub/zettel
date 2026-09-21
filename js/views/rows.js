@@ -7,7 +7,7 @@ import { DAY } from '../store.js';
 
 export const preview = (body) => body.split('\n').map(plainText).filter(Boolean).join(' ');
 
-export function dayLabel(ms) {
+function dayLabel(ms) {
   const d = new Date(ms);
   const today = new Date();
   const days = Math.round((new Date(today.toDateString()) - new Date(d.toDateString())) / DAY);
@@ -40,12 +40,12 @@ export function dayGroups(items) {
  * One row. The clamp lives on an inner box with a fixed two-line height and no padding, so a third line
  * can never peek out below and every row is exactly the same height.
  */
-export function shortRow({ text, href, onClick, aside, className = '' }) {
+export function shortRow({ text, href, onClick, aside }) {
   const inner = [h('span', { class: 'clip' }, text || '(empty)'), aside && h('span', { class: 'aside' }, aside)];
   const row = href
     ? h('a', { class: 'short-row', href }, inner)
     : h('button', { type: 'button', class: 'short-row', onClick }, inner);
-  return h('li', { class: className }, row);
+  return h('li', {}, row);
 }
 
 export const referenceCounts = (g) =>

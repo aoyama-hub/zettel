@@ -1,10 +1,10 @@
 // Note file format: YAML frontmatter + markdown body.
-export const TYPES = ['fleeting', 'literature', 'permanent'];
+const TYPES = ['fleeting', 'literature', 'permanent'];
 
 // Keys this app reads and rewrites, in output order. Any other frontmatter keys are preserved verbatim.
 const KNOWN = ['title', 'type', 'source', 'references', 'created_at', 'updated_at', 'links', 'skipped', 'reviewed_at', 'archived', 'archived_at'];
 
-export function parseNote(text) {
+function parseNote(text) {
   const m = text.match(/^---\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(?:\r?\n|$)/);
   if (!m) return { fm: {}, extra: [], body: text };
   const entries = [];
