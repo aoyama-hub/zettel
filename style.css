@@ -108,6 +108,13 @@ input:-webkit-autofill {
   padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left);
 }
 
+.view-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .view {
   flex: 1;
   min-height: 0;
@@ -1241,4 +1248,196 @@ a.unresolved {
 
 .ref-add button {
   min-height: 40px;
+}
+
+/* ---- bottom bar ---- */
+
+.bottom-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  flex: none;
+  padding: 6px 12px calc(6px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  min-height: 48px;
+  color: var(--faint);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-item:active {
+  opacity: 0.6;
+}
+
+.nav-item.active {
+  color: var(--fg);
+}
+
+.nav-item.shutter {
+  color: var(--fg);
+}
+
+.nav-item.shutter svg {
+  width: 40px;
+  height: 40px;
+}
+
+.badge {
+  position: absolute;
+  top: 2px;
+  right: 14px;
+  min-width: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 17px;
+  text-align: center;
+}
+
+/* ---- review ---- */
+
+.review {
+  padding: 0 0 8px;
+}
+
+.review-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 10px 20px 4px;
+}
+
+.page-heading {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.review .progress {
+  font-size: 13px;
+  color: var(--faint);
+}
+
+.card-stack {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding: 8px 16px 4px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px 18px 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  cursor: grab;
+  touch-action: pan-y;
+  will-change: transform;
+}
+
+.card:active {
+  cursor: grabbing;
+}
+
+.card.empty {
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+.card-title {
+  margin: 0 0 10px;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.card-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  font-size: 17px;
+  max-width: none;
+}
+
+.card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+/* Which way the card is heading while dragging. */
+.card-stack.to-skip .card {
+  border-color: var(--muted);
+}
+
+.card-stack.to-connect .card {
+  border-color: var(--fg);
+  border-width: 2px;
+  padding: 19px 17px 11px;
+}
+
+.review-foot {
+  padding: 8px 16px 0;
+}
+
+.review-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.review-actions button {
+  min-height: 40px;
+  padding: 6px 14px;
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+.swipe-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--faint);
+  text-align: center;
+}
+
+/* ---- settings ---- */
+
+.settings .page-heading {
+  padding: 12px 20px 4px;
+}
+
+.notes.menu {
+  border-bottom: 1px solid var(--line);
+}
+
+.settings .config {
+  padding-top: 8px;
+}
+
+.settings .hint {
+  margin-top: 12px;
 }

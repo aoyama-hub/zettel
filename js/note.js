@@ -2,7 +2,7 @@
 export const TYPES = ['fleeting', 'literature', 'permanent'];
 
 // Keys this app reads and rewrites, in output order. Any other frontmatter keys are preserved verbatim.
-const KNOWN = ['title', 'type', 'source', 'references', 'created_at', 'updated_at', 'links', 'archived', 'archived_at'];
+const KNOWN = ['title', 'type', 'source', 'references', 'created_at', 'updated_at', 'links', 'skipped', 'reviewed_at', 'archived', 'archived_at'];
 
 export function parseNote(text) {
   const m = text.match(/^---\r?\n(?:([\s\S]*?)\r?\n)?---[ \t]*(?:\r?\n|$)/);
@@ -29,6 +29,7 @@ function parseValue(rest, more) {
   if (rest.startsWith('[') && rest.endsWith(']')) return splitFlow(rest.slice(1, -1)).map(unquote).filter(Boolean);
   if (rest === 'true') return true;
   if (rest === 'false') return false;
+  if (/^-?\d+$/.test(rest)) return Number(rest);
   return unquote(rest);
 }
 
@@ -83,6 +84,7 @@ export function serializeNote({ fm, extra = [], body }) {
     const v = fm[key];
     if (Array.isArray(v)) lines.push(`${key}: [${v.map((x) => yamlStr(String(x), true)).join(', ')}]`);
     else if (typeof v === 'boolean') { if (v) lines.push(`${key}: true`); }
+    else if (typeof v === 'number' && Number.isFinite(v)) lines.push(`${key}: ${v}`);
     else if (v != null && String(v) !== '') lines.push(`${key}: ${yamlStr(String(v))}`);
   }
   lines.push(...extra);

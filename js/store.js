@@ -255,6 +255,22 @@ export async function deleteLiteratureByUser(n) {
   removeLocal(n.path);
 }
 
+// ---- Review ----
+
+export const REVIEW_DUE_DAYS = 7;
+
+export const reviewStats = (n) => ({
+  skipped: Number(n.fm.skipped) || 0,
+  reviewedAt: Date.parse(n.fm.reviewed_at) || 0,
+});
+
+/** Permanent notes never reviewed, or not reviewed in the last week: the number badged on the nav. */
+export const dueForReview = () =>
+  permanentNotes().filter((n) => {
+    const { reviewedAt } = reviewStats(n);
+    return !reviewedAt || (Date.now() - reviewedAt) / DAY > REVIEW_DUE_DAYS;
+  });
+
 // ---- References: literature notes grouped by their source ----
 
 export const sourceKey = (s) => String(s || '').trim().replace(/\s+/g, ' ').toLowerCase();

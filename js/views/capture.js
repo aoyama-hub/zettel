@@ -3,7 +3,7 @@ import * as store from '../store.js';
 
 const DRAFT = 'zk.draft';
 
-export function captureView(root) {
+export function captureView(root, { link = '' } = {}) {
   const text = h('textarea', {
     class: 'capture-text',
     spellcheck: false,
@@ -131,8 +131,16 @@ export function captureView(root) {
     ),
   );
 
+  // Arrived from a review swipe: start the note linked to the card that was swiped.
+  if (link) {
+    const opener = `[[${link}]]\n\n`;
+    if (!text.value.includes(`[[${link}]]`)) text.value = opener + text.value;
+    try { localStorage.setItem(DRAFT, text.value); } catch {}
+  }
+
   renderStatus();
   text.focus();
+  text.setSelectionRange(text.value.length, text.value.length);
   const unsubscribe = store.subscribe(renderStatus);
   return unsubscribe;
 }

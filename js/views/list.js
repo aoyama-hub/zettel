@@ -171,7 +171,7 @@ export function listView(root, { tab }) {
 
   const header = tab === 'archive'
     ? h('header', { class: 'list-head' },
-      h('a', { class: 'btn quiet', href: '#/fleeting' }, 'Fleeting'),
+      h('a', { class: 'btn quiet', href: '#/settings' }, 'Settings'),
       h('span', { class: 'page-title' }, 'Archive'),
       h('span', { class: 'spacer' }))
     : h('header', { class: 'list-head' },
@@ -179,7 +179,7 @@ export function listView(root, { tab }) {
         TABS.map(([key, label]) =>
           h('a', { class: key === tab ? 'tab active' : 'tab', href: `#/${key}`, 'aria-current': key === tab ? 'page' : null }, label)),
       ),
-      h('a', { class: 'btn quiet', href: '#/' }, 'Capture'));
+      h('span', { class: 'spacer' }));
 
   root.replaceChildren(
     h('main', { class: 'view list' },
@@ -188,9 +188,6 @@ export function listView(root, { tab }) {
       h('div', { class: 'scroll' },
         msg,
         content,
-        h('footer', { class: 'list-foot' },
-          tab !== 'archive' && h('a', { href: '#/archive' }, 'Archive'),
-          h('a', { href: '#/config' }, 'Settings')),
       ),
     ),
   );

@@ -169,6 +169,16 @@ export async function gitBlobSha(text) {
  */
 export function commitCleanup(changes, message) {
   for (const c of changes) assertFleetingPath(c.path);
+  return commitTree(changes, message);
+}
+
+/** One commit for several note writes ({ path, content }). Never removes anything. */
+export function commitNotes(writes, message) {
+  return commitTree(writes.map(({ path, content }) => ({ path, content })), message);
+}
+
+/** Writes ({ path, content }) and removals ({ path, remove: true }) in a single commit. */
+function commitTree(changes, message) {
   return serial(async () => {
     const cfg = getConfig();
     const repo = repoPath(cfg);

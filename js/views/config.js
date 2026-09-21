@@ -3,7 +3,8 @@ import { checkAccess } from '../github.js';
 import { h } from '../dom.js';
 import * as store from '../store.js';
 
-export function configView(root) {
+/** The GitHub settings form, used on its own at first run and inside the Settings screen. */
+export function configForm() {
   const current = getConfig();
   const field = (label, props) => {
     const input = h('input', { autocapitalize: 'off', autocomplete: 'off', spellcheck: false, ...props });
@@ -56,6 +57,12 @@ export function configView(root) {
     h('div', { class: 'row' }, submit, current && h('a', { href: '#/notes' }, 'Cancel')),
   );
 
+  form.focusFirst = () => token.focus();
+  return form;
+}
+
+export function configView(root) {
+  const form = configForm();
   root.replaceChildren(h('main', { class: 'view scroll' }, form));
-  if (!current) token.focus();
+  if (!getConfig()) form.focusFirst();
 }

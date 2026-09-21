@@ -30,6 +30,19 @@ export function insertText(ta, start, end, text) {
 }
 
 /** Keep focus where it is when a button is tapped (so the phone keyboard stays up). */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** Inline SVG (icons): same shape as h(), but in the SVG namespace and attributes only. */
+export function svg(tag, props = {}, ...children) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (v == null || v === false) continue;
+    el.setAttribute(k, v === true ? '' : v);
+  }
+  el.append(...children.flat(Infinity).filter((c) => c != null && c !== false));
+  return el;
+}
+
 export const keepFocus = (e) => e.preventDefault();
 
 /**
