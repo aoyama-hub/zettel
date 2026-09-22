@@ -479,8 +479,7 @@ button.armed {
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
-  /* min/max rather than height: Chrome's line-clamp sizes the box to its content and ignores height */
-  min-height: calc(2 * 1.45em);
+  /* Up to two lines, ending in "…"; a one-line note stays one line so rows don't gap on wide windows. */
   max-height: calc(2 * 1.45em);
   line-height: 1.45;
   overflow-wrap: anywhere;
