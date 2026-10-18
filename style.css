@@ -222,6 +222,28 @@ button.armed {
   color: var(--muted);
 }
 
+.config label > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.field-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.field-actions button {
+  min-height: 28px;
+  padding: 2px 8px;
+  border: 0;
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .config input {
   font-size: 16px;
   color: var(--fg);

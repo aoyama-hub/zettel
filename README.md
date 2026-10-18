@@ -9,7 +9,7 @@ A small, grayscale Zettelkasten web app. It's a static site with no backend and 
    - Repository access: *Only select repositories* → your notes repo
    - Permissions: **Contents: Read and write** (Metadata: read is added automatically)
 3. **Deploy this app repo** to GitHub Pages: push these files, then Settings → Pages → *Deploy from a branch* → `main` / root.
-4. Open the Pages URL on your phone and enter the token, owner, repo, and branch. They're stored in this browser's `localStorage`, so you only enter them once per browser (or per installed app). Settings is at the bottom of the notes list if you need to change them.
+4. Open the Pages URL on your phone and enter the token, owner, repo, and branch. They're stored in this browser's `localStorage`, so you only enter them once per browser (or per installed app). Settings is at the bottom of the notes list if you need to change them. **Show** and **Copy** next to the token field read it back, since GitHub only displays a token once; the revealed token re-hides itself after 30 seconds.
 5. Optional: install it. On iPhone use Share → Add to Home Screen, in Safari on Mac use File → Add to Dock, and in Chrome use Install page as app. It opens straight to capture.
 
 Local development needs any static server (ES modules don't load from `file://`):

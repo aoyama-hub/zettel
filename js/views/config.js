@@ -1,6 +1,6 @@
 import { getConfig, setConfig } from '../config.js';
 import { checkAccess } from '../github.js';
-import { h } from '../dom.js';
+import { h, toast } from '../dom.js';
 import * as store from '../store.js';
 
 /** The GitHub settings form, used on its own at first run and inside the Settings screen. */
@@ -12,6 +12,43 @@ export function configForm() {
     return [h('label', {}, h('span', {}, label), input), input];
   };
   const [tokenRow, token] = field('GitHub access token', { type: 'password', value: current?.token || '', required: true });
+
+  // GitHub only shows a token once, so let the user read this one back or copy it to another device.
+  let hideTimer = null;
+  const reveal = h('button', {
+    type: 'button',
+    class: 'quiet',
+    onClick: () => {
+      clearTimeout(hideTimer);
+      const showing = token.type === 'text';
+      token.type = showing ? 'password' : 'text';
+      reveal.textContent = showing ? 'Show' : 'Hide';
+      // Don't leave it on screen indefinitely.
+      if (!showing) hideTimer = setTimeout(() => { token.type = 'password'; reveal.textContent = 'Show'; }, 30_000);
+    },
+  }, 'Show');
+
+  const copy = h('button', {
+    type: 'button',
+    class: 'quiet',
+    onClick: async () => {
+      const value = token.value.trim();
+      if (!value) return;
+      try {
+        await navigator.clipboard.writeText(value);
+      } catch {
+        const wasHidden = token.type === 'password';
+        token.type = 'text';
+        token.select();
+        const ok = document.execCommand?.('copy');
+        if (wasHidden) token.type = 'password';
+        if (!ok) return toast('Copy failed — reveal it and copy by hand');
+      }
+      toast('Token copied');
+    },
+  }, 'Copy');
+
+  tokenRow.querySelector('span').append(h('span', { class: 'field-actions' }, reveal, copy));
   const [ownerRow, owner] = field('Repo owner', { value: current?.owner || '', required: true });
   const [repoRow, repo] = field('Repo name', { value: current?.repo || '', required: true });
   const [branchRow, branch] = field('Branch', { value: current?.branch || 'main', placeholder: 'main' });
