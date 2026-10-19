@@ -130,6 +130,7 @@ const MIRROR_PROPS = [
 
 /** Viewport coordinates of the caret, via an off-screen mirror of the textarea. */
 export function caretRect(ta, pos) {
+  if (ta.isLiveEditor) return liveCaretRect(ta, pos);
   const cs = getComputedStyle(ta);
   const mirror = document.createElement('div');
   for (const p of MIRROR_PROPS) mirror.style[p] = cs[p];
@@ -150,4 +151,16 @@ export function caretRect(ta, pos) {
   const height = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.4;
   mirror.remove();
   return { top, left, height };
+}
+
+/** Caret position inside a contenteditable: ask the selection where it is. */
+function liveCaretRect(el, pos) {
+  el.setSelectionRange(pos, pos);
+  const sel = window.getSelection();
+  const box = el.getBoundingClientRect();
+  const height = parseFloat(getComputedStyle(el).lineHeight) || 20;
+  if (!sel?.rangeCount) return { top: box.top, left: box.left, height };
+  const rect = sel.getRangeAt(0).getBoundingClientRect();
+  if (!rect.top && !rect.left) return { top: box.top, left: box.left, height };
+  return { top: rect.top, left: rect.left, height: rect.height || height };
 }

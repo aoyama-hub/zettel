@@ -11,8 +11,11 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     (async () => {
       const cache = await caches.open(CACHE);
+      const load = () => fetch(request.url, { cache: 'no-cache', credentials: 'same-origin' });
       try {
-        const response = await fetch(request.url, { cache: 'no-cache', credentials: 'same-origin' });
+        // One retry: a single dropped connection on a first load would otherwise fail a module
+        // outright, and there is no cached copy to fall back to yet.
+        const response = await load().catch(() => load());
         if (response.ok) cache.put(request.url.split('?')[0], response.clone());
         return response;
       } catch (err) {

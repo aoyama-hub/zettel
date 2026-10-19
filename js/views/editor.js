@@ -1,6 +1,7 @@
 import * as gh from '../github.js';
 import { attachWikilinkAutocomplete, caretRect } from '../autocomplete.js';
 import { confirmButton, formatDate, h, insertText, keepFocus, toast, wrappingField } from '../dom.js';
+import { createLiveEditor } from '../live.js';
 import { renderMarkdown } from '../markdown.js';
 import { SOURCE_LINE, basename, extractLinks, noteReferences, serializeNote, slugify, timestampName, toNote, uniqueReferences } from '../note.js';
 import * as store from '../store.js';
@@ -43,13 +44,13 @@ export function editorView(root, { path, title: initialTitle, from }) {
       }
     },
   });
-  const bodyEl = h('textarea', {
-    class: 'ed-body',
-    spellcheck: false,
+  // Markdown is styled as it is typed; the text itself stays exactly as written.
+  const bodyEl = createLiveEditor({
+    className: 'ed-body',
     placeholder: 'Write. Type [[ to link a note.',
-    'aria-label': 'Body',
-    onInput: edited,
+    ariaLabel: 'Body',
   });
+  bodyEl.addEventListener('input', edited);
 
   const readTitle = h('h1', { class: 'read-title' });
   const prose = h('div', { class: 'prose' });
@@ -301,8 +302,11 @@ export function editorView(root, { path, title: initialTitle, from }) {
     if (s !== bodyEl.selectionEnd) return;
     const ls = v.lastIndexOf('\n', s - 1) + 1;
     const m = v.slice(ls, s).match(/^(\s*)([-*+]|(\d+)([.)]))(\s+)(\[[ xX]\]\s+)?/);
-    if (!m) return;
     e.preventDefault();
+    if (!m) {
+      insertText(bodyEl, s, bodyEl.selectionEnd, '\n');
+      return;
+    }
     let le = v.indexOf('\n', s);
     if (le < 0) le = v.length;
     if (!v.slice(ls + m[0].length, le).trim()) {

@@ -22,11 +22,18 @@ function append(el, children) {
 /** Replace [start, end) of a textarea, keeping the native undo stack where supported. Fires input. */
 export function insertText(ta, start, end, text) {
   ta.focus();
+  ta.breakUndo?.();
   ta.setSelectionRange(start, end);
-  if (!document.execCommand('insertText', false, text)) {
-    ta.setRangeText(text, start, end, 'end');
-    ta.dispatchEvent(new Event('input', { bubbles: true }));
+  // execCommand keeps the editor's own undo history, whether it's a textarea or the live editor.
+  if (document.execCommand('insertText', false, text)) {
+    // Around a newline the browser reports the caret as the end of the previous line; we know better.
+    if (ta.isLiveEditor) ta.setSelectionRange(start + text.length);
+    return;
   }
+  const value = ta.value;
+  ta.value = value.slice(0, start) + text + value.slice(end);
+  ta.setSelectionRange(start + text.length);
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 /** Keep focus where it is when a button is tapped (so the phone keyboard stays up). */
