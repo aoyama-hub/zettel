@@ -315,7 +315,6 @@ button.armed {
   width: 100%;
   padding: 16px 20px;
   border: 0;
-  resize: none;
   background: transparent;
   font-size: 20px;
   line-height: 1.55;

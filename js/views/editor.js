@@ -49,6 +49,7 @@ export function editorView(root, { path, title: initialTitle, from }) {
     className: 'ed-body',
     placeholder: 'Write. Type [[ to link a note.',
     ariaLabel: 'Body',
+    handleEnter: false, // onBodyKeydown runs after the autocomplete and continues lists
   });
   bodyEl.addEventListener('input', edited);
 

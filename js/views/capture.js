@@ -1,24 +1,22 @@
 import { h, keepFocus } from '../dom.js';
+import { createLiveEditor } from '../live.js';
 import * as store from '../store.js';
 
 const DRAFT = 'zk.draft';
 
 export function captureView(root, { link = '' } = {}) {
-  const text = h('textarea', {
-    class: 'capture-text',
-    spellcheck: false,
-    autocapitalize: 'sentences',
-    'aria-label': 'Note',
-    value: localStorage.getItem(DRAFT) || '',
-    onInput: () => {
-      try { localStorage.setItem(DRAFT, text.value); } catch {}
-    },
-    onKeydown: (e) => {
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        commit();
-      }
-    },
+  // Same live markdown styling as the note editor: type `- ` or `**bold**` and it styles as you go.
+  const text = createLiveEditor({ className: 'capture-text', ariaLabel: 'Note' });
+  text.setAttribute('autocapitalize', 'sentences');
+  text.value = localStorage.getItem(DRAFT) || '';
+  text.addEventListener('input', () => {
+    try { localStorage.setItem(DRAFT, text.value); } catch {}
+  });
+  text.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      commit();
+    }
   });
 
   const source = h('input', {

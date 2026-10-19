@@ -106,7 +106,7 @@ const buildNodes = (parts, source) => {
   return nodes;
 };
 
-export function createLiveEditor({ className = '', placeholder = '', ariaLabel } = {}) {
+export function createLiveEditor({ className = '', placeholder = '', ariaLabel, handleEnter = true } = {}) {
   const el = h('div', {
     class: `live ${className}`.trim(),
     contenteditable: 'true',
@@ -273,10 +273,48 @@ export function createLiveEditor({ className = '', placeholder = '', ariaLabel }
   });
 
   el.addEventListener('keydown', (e) => {
-    if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
-    e.preventDefault();
-    step(e.shiftKey ? 1 : -1);
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      step(e.shiftKey ? 1 : -1);
+      return;
+    }
+    // Left to the browser, Enter would build block elements; the model here is plain text.
+    if (handleEnter && e.key === 'Enter' && !e.defaultPrevented && !composing && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      e.preventDefault();
+      newline();
+    }
   });
+
+  /** Enter: continue a list, or end it when the item is empty. */
+  function newline() {
+    const source = readText();
+    const caret = getCaret() ?? { start: source.length, end: source.length };
+    const lineStart = source.lastIndexOf('\n', caret.start - 1) + 1;
+    const m = source.slice(lineStart, caret.start).match(/^(\s*)([-*+]|(\d+)([.)]))(\s+)(\[[ xX]\]\s+)?/);
+    if (!m || caret.start !== caret.end) return insertAt(caret.start, caret.end, '\n');
+    let lineEnd = source.indexOf('\n', caret.start);
+    if (lineEnd < 0) lineEnd = source.length;
+    if (!source.slice(lineStart + m[0].length, lineEnd).trim()) {
+      insertAt(lineStart, lineEnd, m[1]); // empty item: drop the marker and end the list
+      return;
+    }
+    const marker = m[3] ? `${Number(m[3]) + 1}${m[4]}` : m[2];
+    insertAt(caret.start, caret.start, `\n${m[1]}${marker}${m[5]}${m[6] ? '[ ] ' : ''}`);
+  }
+
+  /** Replace a range with text, keeping undo and leaving the caret after what was inserted. */
+  function insertAt(start, end, value) {
+    el.focus();
+    coalescing = false;
+    programmatic = true;
+    setCaret(start, end);
+    if (!document.execCommand('insertText', false, value)) {
+      const source = readText();
+      el.value = source.slice(0, start) + value + source.slice(end);
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    setCaret(start + value.length);
+  }
 
   // Paste and drop arrive as plain text so the model stays plain text.
   const insertPlain = (e, data) => {
